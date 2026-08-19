@@ -1,10 +1,10 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const aiChatSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     sessionId: {
@@ -15,7 +15,7 @@ const aiChatSchema = new mongoose.Schema(
       {
         role: {
           type: String,
-          enum: ['user', 'assistant'],
+          enum: ["user", "assistant"],
           required: true,
         },
         content: {
@@ -29,7 +29,7 @@ const aiChatSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-module.exports = mongoose.model('AIChat', aiChatSchema);
+module.exports = mongoose.model("AIChat", aiChatSchema);

@@ -1,44 +1,24 @@
-const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 
-/**
- * Generate JWT token and optionally set it as a cookie
- */
-const generateToken = (userId, role) => {
-  return jwt.sign({ id: userId, role: role }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || "7d",
+const sendEmail = async ({ to, subject, html }) => {
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT,
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
   });
-};
 
-/**
- * Send token as response + cookie
- */
-const sendTokenResponse = (user, statusCode, res, message = "Success") => {
-  const token = generateToken(user._id, user.role);
-
-  // Cookie options
-  const cookieOptions = {
-    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    httpOnly: true, // can't be accessed via JavaScript (XSS protection)
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+  const mailOptions = {
+    from: `"AI Healthcare" <${process.env.EMAIL_USER}>`,
+    to,
+    subject,
+    html,
   };
 
-  res
-    .status(statusCode)
-    .cookie("token", token, cookieOptions)
-    .json({
-      success: true,
-      message,
-      token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isVerified: user.isVerified,
-        avatar: user.avatar,
-      },
-    });
+  await transporter.sendMail(mailOptions);
 };
 
-module.exports = { generateToken, sendTokenResponse };
+module.exports = sendEmail;
