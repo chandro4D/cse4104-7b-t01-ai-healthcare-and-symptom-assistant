@@ -2,20 +2,18 @@
 
 2.Team information:
 	  Team Leader Name & ID:
-                     Name: Chandra Shekhor Mondal
-                     Id:11230121191
-
+                Name: Chandra Shekhor Mondal
+                Id:11230121191
 	  Full Member List with IDs:
-	      Frontend Developer:
-             Name: Akibur Rahman 
-             Id:11220320907
-	  Backend Developer:
-		       Name:  Bayzid Hasan 
-             Id: 11230121123
-
-	  AI Integration Lead
-             Name: Kazi Alvi Zaman 
-             Id: 11230121202
+	        Frontend Developer:
+                Name: Akibur Rahman 
+                Id:11220320907
+	  	    Backend Developer:
+		        Name:  Bayzid Hasan 
+                Id: 11230121123
+	        AI Integration Lead
+                Name: Kazi Alvi Zaman 
+                Id: 11230121202
 
 3.Technology stack:
         Frontend: React.js     
