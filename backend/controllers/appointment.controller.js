@@ -1,187 +1,212 @@
-const asyncHandler = require("express-async-handler");
 const Appointment = require("../models/Appointment.model");
-const Notification = require("../models/Notification.model");
-const User = require("../models/User.model");
+const Doctor = require("../models/Doctor.model");
 
-// ─── @desc    Book a new appointment
-// ─── @route   POST /api/v1/appointments
-// ─── @access  Patient
-const bookAppointment = asyncHandler(async (req, res) => {
-  const { doctorId, date, timeSlot, reason, symptoms, type } = req.body;
+// ============================================
+// CREATE APPOINTMENT
+// ============================================
+const createAppointment = async (req, res) => {
+  try {
+    const { doctorId, date, time, reason, patientName } = req.body;
 
-  // Verify doctor exists
-  const doctor = await User.findOne({ _id: doctorId, role: "doctor" });
-  if (!doctor) {
-    res.status(404);
-    throw new Error("Doctor not found.");
-  }
+    if (!doctorId || !date || !time || !reason || !patientName) {
+      return res.status(400).json({
+        success: false,
+        message: "All appointment fields are required.",
+      });
+    }
 
-  // Check if slot is already taken
-  const existingAppointment = await Appointment.findOne({
-    doctorId,
-    date,
-    timeSlot,
-    status: { $in: ["pending", "confirmed"] },
-  });
+    // Find doctor
+    const doctor = await Doctor.findById(doctorId);
 
-  if (existingAppointment) {
-    res.status(400);
-    throw new Error("This time slot is already booked. Please choose another.");
-  }
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found.",
+      });
+    }
 
-  // Create appointment
-  const appointment = await Appointment.create({
-    patientId: req.user._id,
-    doctorId,
-    date,
-    timeSlot,
-    reason,
-    symptoms,
-    type: type || "in-person",
-  });
+    // Do not allow booking busy doctor
+    if (doctor.availability === "Busy") {
+      return res.status(400).json({
+        success: false,
+        message: "This doctor is currently unavailable.",
+      });
+    }
 
-  // Notify doctor
-  await Notification.create({
-    userId: doctorId,
-    title: "New Appointment Request",
-    message: `You have a new appointment request from ${req.user.name} on ${new Date(date).toDateString()} at ${timeSlot}.`,
-    type: "appointment",
-  });
+    // Optional: prevent duplicate booking at same time
+    const existingAppointment = await Appointment.findOne({
+      doctor: doctorId,
+      date,
+      time,
+      status: { $in: ["Pending", "Confirmed"] },
+    });
 
-  // Notify patient
-  await Notification.create({
-    userId: req.user._id,
-    title: "Appointment Booked",
-    message: `Your appointment with Dr. ${doctor.name} on ${new Date(date).toDateString()} at ${timeSlot} is pending confirmation.`,
-    type: "appointment",
-  });
+    if (existingAppointment) {
+      return res.status(409).json({
+        success: false,
+        message: "This time slot is already booked.",
+      });
+    }
 
-  res.status(201).json({
-    success: true,
-    message:
-      "Appointment booked successfully! Waiting for doctor confirmation.",
-    data: appointment,
-  });
-});
+    // Create appointment
+    const appointment = await Appointment.create({
+      patient: req.user._id,
 
-// ─── @desc    Get all appointments (filtered by role)
-// ─── @route   GET /api/v1/appointments
-// ─── @access  Private
-const getAppointments = asyncHandler(async (req, res) => {
-  let query = {};
+      doctor: doctor._id,
 
-  if (req.user.role === "patient") {
-    query.patientId = req.user._id;
-  } else if (req.user.role === "doctor") {
-    query.doctorId = req.user._id;
-  }
-  // Admin sees all
+      patientName,
 
-  const appointments = await Appointment.find(query)
-    .populate("patientId", "name email avatar")
-    .populate("doctorId", "name email avatar")
-    .sort({ date: -1 });
+      doctorName: doctor.name,
 
-  res.status(200).json({
-    success: true,
-    count: appointments.length,
-    data: appointments,
-  });
-});
+      specialty: doctor.specialty,
 
-// ─── @desc    Get single appointment
-// ─── @route   GET /api/v1/appointments/:id
-// ─── @access  Private
-const getAppointmentById = asyncHandler(async (req, res) => {
-  const appointment = await Appointment.findById(req.params.id)
-    .populate("patientId", "name email phone avatar")
-    .populate("doctorId", "name email avatar");
+      date,
 
-  if (!appointment) {
-    res.status(404);
-    throw new Error("Appointment not found.");
-  }
+      time,
 
-  res.status(200).json({ success: true, data: appointment });
-});
+      reason,
 
-// ─── @desc    Update appointment status (doctor confirms/rejects)
-// ─── @route   PUT /api/v1/appointments/:id
-// ─── @access  Doctor / Patient / Admin
-const updateAppointment = asyncHandler(async (req, res) => {
-  const appointment = await Appointment.findById(req.params.id);
+      status: "Pending",
+    });
 
-  if (!appointment) {
-    res.status(404);
-    throw new Error("Appointment not found.");
-  }
+    return res.status(201).json({
+      success: true,
+      message: "Appointment booked successfully.",
+      data: appointment,
+    });
+  } catch (error) {
+    console.error("Create appointment error:", error);
 
-  const { status, notes, diagnosis, cancelReason } = req.body;
-
-  // Update allowed fields
-  if (status) appointment.status = status;
-  if (notes) appointment.notes = notes;
-  if (diagnosis) appointment.diagnosis = diagnosis;
-  if (cancelReason) {
-    appointment.cancelReason = cancelReason;
-    appointment.cancelledBy = req.user.role;
-  }
-
-  await appointment.save();
-
-  // Notify the other party
-  const notifyUserId =
-    req.user.role === "doctor" ? appointment.patientId : appointment.doctorId;
-
-  const statusMessages = {
-    confirmed: "Your appointment has been confirmed!",
-    rejected: "Your appointment request was rejected.",
-    completed: "Your appointment has been marked as completed.",
-    cancelled: "An appointment has been cancelled.",
-  };
-
-  if (statusMessages[status]) {
-    await Notification.create({
-      userId: notifyUserId,
-      title: "Appointment Update",
-      message: statusMessages[status],
-      type: "appointment",
+    return res.status(500).json({
+      success: false,
+      message: "Failed to book appointment.",
     });
   }
+};
 
-  res.status(200).json({
-    success: true,
-    message: "Appointment updated successfully.",
-    data: appointment,
-  });
-});
+// ============================================
+// GET LOGGED-IN USER APPOINTMENTS
+// ============================================
+const getMyAppointments = async (req, res) => {
+  try {
+    const appointments = await Appointment.find({
+      patient: req.user._id,
+    })
+      .populate("doctor", "name specialty image hospital")
+      .sort({ createdAt: -1 });
 
-// ─── @desc    Cancel appointment
-// ─── @route   DELETE /api/v1/appointments/:id
-// ─── @access  Patient / Admin
-const cancelAppointment = asyncHandler(async (req, res) => {
-  const appointment = await Appointment.findById(req.params.id);
+    return res.status(200).json({
+      success: true,
+      data: appointments,
+    });
+  } catch (error) {
+    console.error("Get my appointments error:", error);
 
-  if (!appointment) {
-    res.status(404);
-    throw new Error("Appointment not found.");
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load appointments.",
+    });
   }
+};
 
-  appointment.status = "cancelled";
-  appointment.cancelledBy = req.user.role;
-  appointment.cancelReason = req.body.reason || "Cancelled by user";
-  await appointment.save();
+// ============================================
+// GET DOCTOR APPOINTMENTS
+// ============================================
+const getDoctorAppointments = async (req, res) => {
+  try {
+    const appointments = await Appointment.find({
+      doctor: req.user.doctorId,
+    })
+      .populate("patient", "name email")
+      .sort({ date: 1, time: 1 });
 
-  res.status(200).json({
-    success: true,
-    message: "Appointment cancelled successfully.",
-  });
-});
+    return res.status(200).json({
+      success: true,
+      data: appointments,
+    });
+  } catch (error) {
+    console.error("Get doctor appointments error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load doctor appointments.",
+    });
+  }
+};
+
+// ============================================
+// GET ALL APPOINTMENTS - ADMIN
+// ============================================
+const getAllAppointments = async (req, res) => {
+  try {
+    const appointments = await Appointment.find()
+      .populate("patient", "name email")
+      .populate("doctor", "name specialty hospital")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      data: appointments,
+    });
+  } catch (error) {
+    console.error("Get all appointments error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load appointments.",
+    });
+  }
+};
+
+// ============================================
+// UPDATE APPOINTMENT STATUS
+// ============================================
+const updateAppointmentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const allowedStatuses = ["Pending", "Confirmed", "Cancelled", "Completed"];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid appointment status.",
+      });
+    }
+
+    const appointment = await Appointment.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true, runValidators: true },
+    );
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Appointment status updated successfully.",
+      data: appointment,
+    });
+  } catch (error) {
+    console.error("Update appointment status error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update appointment status.",
+    });
+  }
+};
 
 module.exports = {
-  bookAppointment,
-  getAppointments,
-  getAppointmentById,
-  updateAppointment,
-  cancelAppointment,
+  createAppointment,
+  getMyAppointments,
+  getDoctorAppointments,
+  getAllAppointments,
+  updateAppointmentStatus,
 };

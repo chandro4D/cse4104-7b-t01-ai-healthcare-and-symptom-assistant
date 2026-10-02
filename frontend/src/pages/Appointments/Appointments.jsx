@@ -1,31 +1,15 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import axios from "axios";
+
 function Appointments() {
   const location = useLocation();
+
   const selectedDoctor = location.state?.doctor;
+  const doctorId = location.state?.doctorId || selectedDoctor?._id;
+  const token = localStorage.getItem("token");
 
-  const [appointments, setAppointments] = useState([
-    {
-      id: 1,
-      patientName: "John Smith",
-      doctor: "Dr. Sarah Johnson",
-      specialty: "Cardiologist",
-      date: "2026-07-20",
-      time: "10:00",
-      status: "Confirmed",
-    },
-    {
-      id: 2,
-      patientName: "Emma Brown",
-      doctor: "Dr. Michael Brown",
-      specialty: "Dermatologist",
-      date: "2026-07-23",
-      time: "15:30",
-      status: "Pending",
-    },
-  ]);
-
+  const [appointments, setAppointments] = useState([]);
   const [formData, setFormData] = useState({
     patientName: "",
     doctor: "",
@@ -35,6 +19,30 @@ function Appointments() {
     reason: "",
   });
 
+  // Fetch logged-in user's appointments
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        const res = await axios.get(
+          "http://localhost:5000/api/v1/appointments/my",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        setAppointments(res.data.data || []);
+      } catch (error) {
+        console.error("Failed to load appointments:", error);
+      }
+    };
+
+    if (token) {
+      fetchAppointments();
+    }
+  }, [token]);
+  
   // Auto-fill doctor information when coming from Doctors page
   useEffect(() => {
     if (selectedDoctor) {
@@ -72,9 +80,17 @@ function Appointments() {
       // Send appointment to backend
       const res = await axios.post(
         "http://localhost:5000/api/v1/appointments",
-        formData,
         {
-          withCredentials: true,
+          doctorId,
+          patientName: formData.patientName,
+          date: formData.date,
+          time: formData.time,
+          reason: formData.reason,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
       );
 
@@ -217,13 +233,13 @@ function Appointments() {
             <div className="space-y-5">
               {appointments.map((appointment) => (
                 <div
-                  key={appointment.id}
+                  key={appointment._id}
                   className="border rounded-2xl p-5 hover:shadow-lg transition"
                 >
                   <div className="flex justify-between items-center">
                     <div>
                       <h3 className="font-bold text-lg">
-                        {appointment.doctor}
+                        {appointment.doctorName}
                       </h3>
                       <p className="text-gray-500">{appointment.specialty}</p>
                     </div>

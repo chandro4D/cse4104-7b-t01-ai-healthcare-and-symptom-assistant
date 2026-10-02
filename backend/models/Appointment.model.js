@@ -2,57 +2,62 @@ const mongoose = require("mongoose");
 
 const appointmentSchema = new mongoose.Schema(
   {
-    patientId: {
+    patient: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    doctorId: {
+
+    doctor: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Doctor",
       required: true,
     },
-    date: {
-      type: Date,
-      required: [true, "Appointment date is required"],
-    },
-    timeSlot: {
+
+    // Snapshot data for easier display
+    patientName: {
       type: String,
-      required: [true, "Time slot is required"],
-      // e.g. "10:00 AM - 10:30 AM"
-    },
-    status: {
-      type: String,
-      enum: ["pending", "confirmed", "completed", "cancelled", "rejected"],
-      default: "pending",
-    },
-    type: {
-      type: String,
-      enum: ["in-person", "video"],
-      default: "in-person",
-    },
-    reason: {
-      type: String,
+      required: true,
       trim: true,
     },
-    symptoms: [String],
-    notes: {
+
+    doctorName: {
       type: String,
-      default: "",
+      required: true,
+      trim: true,
     },
-    // Doctor's notes after consultation
-    diagnosis: {
+
+    specialty: {
       type: String,
-      default: "",
+      required: true,
+      trim: true,
     },
-    cancelledBy: {
+
+    date: {
       type: String,
-      enum: ["patient", "doctor", "admin", ""],
-      default: "",
+      required: true,
     },
-    cancelReason: String,
+
+    time: {
+      type: String,
+      required: true,
+    },
+
+    reason: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    status: {
+      type: String,
+      enum: ["Pending", "Confirmed", "Cancelled", "Completed"],
+      default: "Pending",
+    },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
 module.exports = mongoose.model("Appointment", appointmentSchema);

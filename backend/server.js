@@ -1,34 +1,46 @@
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const dotenv = require("dotenv");
 
-// Load environment variables
+// Load environment variables FIRST
 dotenv.config();
+
+console.log("Gemini key prefix:", process.env.GEMINI_API_KEY?.slice(0, 10));
+
+// Database connection
+const connectDB = require("./config/db");
 
 // Import routes
 const authRoutes = require("./routes/auth.routes");
 const patientRoutes = require("./routes/patient.routes");
 const doctorRoutes = require("./routes/doctor.routes");
-const appointmentRoutes = require("./routes/appointment.routes");
 const adminRoutes = require("./routes/admin.routes");
 const aiRoutes = require("./routes/ai.routes");
 const notificationRoutes = require("./routes/notification.routes");
+const appointmentRoutes = require("./routes/appointment_routes");
 
 // Import error handler
 const { errorHandler, notFound } = require("./middleware/error.middleware");
 
 const app = express();
 
-// ─── Security & Utility Middleware ───────────────────────────────────────────
+// ─────────────────────────────────────────────
+// Security & Utility Middleware
+// ─────────────────────────────────────────────
+
 app.use(helmet());
+
 app.use(morgan("dev"));
+
 app.use(cookieParser());
 
-// ─── CORS ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// CORS
+// ─────────────────────────────────────────────
+
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:5173",
@@ -36,11 +48,18 @@ app.use(
   }),
 );
 
-// ─── Body Parsers ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// Body Parsers
+// ─────────────────────────────────────────────
+
 app.use(express.json());
+
 app.use(express.urlencoded({ extended: true }));
 
-// ─── Health Check Route ───────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// Health Check
+// ─────────────────────────────────────────────
+
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -49,31 +68,52 @@ app.get("/", (req, res) => {
   });
 });
 
-// ─── API Routes ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// API Routes
+// ─────────────────────────────────────────────
+
 app.use("/api/v1/auth", authRoutes);
+
 app.use("/api/v1/patients", patientRoutes);
+
 app.use("/api/v1/doctors", doctorRoutes);
+
 app.use("/api/v1/appointments", appointmentRoutes);
+
 app.use("/api/v1/admin", adminRoutes);
+
 app.use("/api/v1/ai", aiRoutes);
+
 app.use("/api/v1/notifications", notificationRoutes);
 
-// ─── Error Handling ───────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// Error Handling
+// ─────────────────────────────────────────────
+
 app.use(notFound);
+
 app.use(errorHandler);
 
-// ─── Connect to MongoDB & Start Server ───────────────────────────────────────
+// ─────────────────────────────────────────────
+// Start Server
+// ─────────────────────────────────────────────
+
 const PORT = process.env.PORT || 5000;
 
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("✅ MongoDB Connected Successfully");
+const startServer = async () => {
+  try {
+    // Connect to MongoDB
+    await connectDB();
+
+    // Start Express server ONLY after MongoDB connects
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
-  })
-  .catch((error) => {
-    console.error("❌ MongoDB Connection Failed:", error.message);
+  } catch (error) {
+    console.error("❌ Server startup failed:", error.message);
+
     process.exit(1);
-  });
+  }
+};
+
+startServer();

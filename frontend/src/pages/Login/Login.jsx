@@ -4,37 +4,58 @@ import Swal from "sweetalert2";
 import { FaHeartbeat } from "react-icons/fa";
 import { MdHealthAndSafety } from "react-icons/md";
 import doctor from "../../assets/images/hero.png";
+import { useState } from "react";
+import { User, Stethoscope, ShieldCheck } from "lucide-react";
+const ROLES = [
+  { key: "patient", label: "Patient", icon: User },
+  { key: "doctor", label: "Doctor", icon: Stethoscope },
+  { key: "admin", label: "Admin", icon: ShieldCheck },
+];
+
 const Login = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const from = location.state?.from?.pathname || "/";
-
-  
-  
+  const [selectedRole, setSelectedRole] = useState("patient");
+  const handleRoleChange = (role) => {
+    setSelectedRole(role);
+  };
 
   const handleLogIn = async (e) => {
     e.preventDefault();
 
     const form = e.target;
 
-    const email = form.email.value;
+    const email = form.email.value.trim();
     const password = form.password.value;
 
     const userInfo = {
       email,
       password,
+      role: selectedRole,
     };
 
+    console.log("Login data:", userInfo);
+
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/auth/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(userInfo),
         },
-        body: JSON.stringify(userInfo),
-      });
+      );
 
       const data = await res.json();
+
+      console.log("Login response:", data);
+
+      if (!res.ok) {
+        throw new Error(data.message || "Login failed");
+      }
 
       if (data.token) {
         localStorage.setItem("token", data.token);
@@ -42,18 +63,23 @@ const Login = () => {
 
         Swal.fire({
           icon: "success",
-          text: "Login Successfully!",
+          title: "Success!",
+          text: "Login successful!",
         });
-
+        
+        window.dispatchEvent(new Event("userUpdated"));
         navigate(from, { replace: true });
       } else {
-        Swal.fire({
-          icon: "error",
-          text: "Please provide correct email and password!",
-        });
+        throw new Error("Token was not returned by server");
       }
     } catch (error) {
-      console.log(error);
+      console.error("Login error:", error);
+
+      Swal.fire({
+        icon: "error",
+        title: "Login Failed",
+        text: error.message || "Something went wrong!",
+      });
     }
   };
 
@@ -86,21 +112,23 @@ const Login = () => {
           </p>
 
           {/* Role */}
-
-          <div className="mt-6 flex rounded-xl border overflow-hidden">
-            <button className="flex-1 bg-white py-3 font-semibold shadow">
-              Patient
-            </button>
-
-            <button className="flex-1 py-3 text-gray-500 hover:bg-gray-100 duration-300">
-              Doctor
-            </button>
-
-            <button className="flex-1 py-3 text-gray-500 hover:bg-gray-100 duration-300">
-              Admin
-            </button>
+          <div className="flex mb-6 bg-white border border-gray-200 rounded-lg p-1">
+            {ROLES.map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handleRoleChange(key)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
+                  selectedRole === key
+                    ? "bg-white border border-gray-200 shadow-sm text-[#0F6E56]"
+                    : "text-gray-400 hover:text-gray-600 border border-transparent"
+                }`}
+              >
+                <Icon size={15} strokeWidth={2} />
+                {label}
+              </button>
+            ))}
           </div>
-
           {/* Form */}
 
           <form onSubmit={handleLogIn} className="space-y-6 mt-8">

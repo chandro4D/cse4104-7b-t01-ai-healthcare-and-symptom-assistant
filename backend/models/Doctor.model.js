@@ -2,87 +2,85 @@ const mongoose = require("mongoose");
 
 const doctorSchema = new mongoose.Schema(
   {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    email: {
+      type: String,
       required: true,
       unique: true,
-    },
-    specialization: {
-      type: String,
-      required: [true, "Specialization is required"],
+      lowercase: true,
       trim: true,
     },
-    licenseNumber: {
+
+    phone: {
       type: String,
-      required: [true, "License number is required"],
-      unique: true,
       trim: true,
     },
-    qualifications: [
-      {
-        degree: String,
-        institution: String,
-        year: Number,
-      },
-    ],
+
+    specialty: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
     experience: {
-      type: Number, // years of experience
-      default: 0,
-    },
-    consultationFee: {
       type: Number,
-      default: 0,
+      required: true,
+      min: 0,
     },
-    hospital: {
-      type: String,
-      default: "",
-    },
-    location: {
-      type: String,
-      default: "",
-    },
-    bio: {
-      type: String,
-      default: "",
-    },
-    isVerified: {
-      type: Boolean,
-      default: false, // admin must verify
-    },
-    verifiedAt: Date,
-    // Weekly availability schedule
-    availability: [
-      {
-        day: {
-          type: String,
-          enum: [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
-          ],
-        },
-        startTime: String, // e.g. "09:00"
-        endTime: String, // e.g. "17:00"
-        isAvailable: { type: Boolean, default: true },
-      },
-    ],
+
     rating: {
       type: Number,
       default: 0,
       min: 0,
       max: 5,
     },
-    totalReviews: {
+
+    hospital: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    availability: {
+      type: String,
+      enum: ["Available Today", "Available Tomorrow", "Busy"],
+      default: "Available Today",
+    },
+
+    image: {
+      type: String,
+      default: "",
+    },
+
+    bio: {
+      type: String,
+      default: "",
+    },
+
+    consultationFee: {
       type: Number,
       default: 0,
+      min: 0,
+    },
+
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
 module.exports = mongoose.model("Doctor", doctorSchema);

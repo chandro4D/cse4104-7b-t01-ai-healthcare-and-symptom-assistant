@@ -9,6 +9,6 @@ const { symptomCheck, chatWithAI } = require("../controllers/ai.controller");
 router.post("/symptom-check", symptomCheck);
 
 // General AI health chat
-router.post("/chat", chatWithAI);
+router.post("/chat",  chatWithAI);
 
 module.exports = router;

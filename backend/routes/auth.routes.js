@@ -31,7 +31,7 @@ const registerValidation = [
     .withMessage("Password must be at least 6 characters"),
   body("role")
     .optional()
-    .isIn(["patient", "doctor"])
+    .isIn(["patient", "doctor","admin"])
     .withMessage("Role must be patient or doctor"),
 ];
 
@@ -41,7 +41,7 @@ const loginValidation = [
 ];
 
 // Routes
-router.post("/register", registerValidation, validate, register);
+router.post("/signup", registerValidation, validate, register);
 router.post("/login", loginValidation, validate, login);
 router.post("/logout", protect, logout);
 router.get("/profile", protect, getProfile);

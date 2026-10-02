@@ -1,4 +1,3 @@
-import React from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import {
   FaHome,
@@ -18,6 +17,7 @@ import {
   FaWallet,
   FaMapMarkerAlt,
   FaHeadset,
+  FaUserMd,
 } from "react-icons/fa";
 import { MdOutlineManageAccounts } from "react-icons/md";
 
@@ -169,7 +169,7 @@ function Dashboard() {
                   Find a Doctor
                 </SidebarLink>
                 <SidebarLink
-                  to="/dashboard/appointments"
+                  to="/dashboard/PatientAppointments"
                   icon={<FaCalendarAlt />}
                 >
                   Appointments
@@ -181,7 +181,7 @@ function Dashboard() {
                   Health Records
                 </SidebarLink>
                 <SidebarLink
-                  to="/dashboard/prescriptions"
+                  to="/dashboard/PatientPrescriptions"
                   icon={<FaPrescriptionBottleAlt />}
                 >
                   Prescriptions
@@ -210,8 +210,8 @@ function Dashboard() {
             <SidebarLink to="/" icon={<FaHome />}>
               Home
             </SidebarLink>
-            <SidebarLink to="/shop" icon={<FaCartPlus />}>
-              Shop
+            <SidebarLink to="/doctors" icon={<FaUserMd />}>
+              Doctors
             </SidebarLink>
             <SidebarLink to="/contact" icon={<FaEnvelope />}>
               Contact

@@ -191,7 +191,7 @@ function Navbar() {
                   </li>
                   <li>
                     <Link
-                      to="/dashboard"
+                      to="/dashboard/patientHome"
                       onClick={() => setMenuOpen(false)}
                       className="block rounded-xl px-3 py-2 font-medium hover:bg-slate-50"
                     >

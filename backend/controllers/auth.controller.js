@@ -6,9 +6,7 @@ const Patient = require("../models/Patient.model");
 const { sendTokenResponse } = require("../utils/generateToken");
 const sendEmail = require("../utils/sendEmail");
 
-// ─── @desc    Register new user
-// ─── @route   POST /api/v1/auth/register
-// ─── @access  Public
+
 const register = asyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
 
@@ -20,7 +18,7 @@ const register = asyncHandler(async (req, res) => {
   }
 
   // Only allow patient or doctor registration (not admin)
-  const allowedRoles = ["patient", "doctor"];
+  const allowedRoles = ["patient", "doctor", "admin"];
   const userRole = allowedRoles.includes(role) ? role : "patient";
 
   // Create email verification token
