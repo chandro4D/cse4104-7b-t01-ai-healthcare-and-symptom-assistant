@@ -3,6 +3,7 @@ const express = require("express");
 const {
   createAppointment,
   getMyAppointments,
+  cancelAppointment,
   getDoctorAppointments,
   getAllAppointments,
   updateAppointmentStatus,
@@ -19,6 +20,9 @@ const router = express.Router();
 router.post("/", protect, createAppointment);
 
 router.get("/my", protect, getMyAppointments);
+
+// Cancel own appointment (admin can cancel any)
+router.patch("/:id/cancel", protect, cancelAppointment);
 
 // ============================================
 // DOCTOR

@@ -8,8 +8,6 @@ const dotenv = require("dotenv");
 // Load environment variables FIRST
 dotenv.config();
 
-console.log("Gemini key prefix:", process.env.GEMINI_API_KEY?.slice(0, 10));
-
 // Database connection
 const connectDB = require("./config/db");
 
@@ -21,6 +19,7 @@ const adminRoutes = require("./routes/admin.routes");
 const aiRoutes = require("./routes/ai.routes");
 const notificationRoutes = require("./routes/notification.routes");
 const appointmentRoutes = require("./routes/appointment_routes");
+const dashboardRoutes = require("./routes/dashboard.routes");
 
 // Import error handler
 const { errorHandler, notFound } = require("./middleware/error.middleware");
@@ -85,6 +84,8 @@ app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/ai", aiRoutes);
 
 app.use("/api/v1/notifications", notificationRoutes);
+
+app.use("/api/v1/dashboard", dashboardRoutes);
 
 // ─────────────────────────────────────────────
 // Error Handling
