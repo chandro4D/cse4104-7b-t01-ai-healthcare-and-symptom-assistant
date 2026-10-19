@@ -10,7 +10,7 @@ const services = [
   },
   {
     title: "Book Appointment",
-    desc: "Match with the right doctor and book a slot in seconds — no phone calls, no waiting.",
+    desc: "Match with the right doctor and book a slot in seconds with no phone calls, no waiting.",
     Icon: CalendarCheck,
   },
   {

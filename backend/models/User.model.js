@@ -29,6 +29,7 @@ const userSchema = new mongoose.Schema(
       enum: ["patient", "doctor", "admin"],
       default: "patient",
     },
+    doctorId: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor" },
     avatar: {
       type: String,
       default: "",

@@ -1,12 +1,60 @@
 const asyncHandler = require("express-async-handler");
 const crypto = require("crypto");
 const User = require("../models/User.model");
-const Doctor = require("../models/Doctor.model");
 const Patient = require("../models/Patient.model");
-const { sendTokenResponse } = require("../utils/generateToken");
+const {
+  sendTokenResponse,
+  getCookieOptions,
+} = require("../utils/generateToken");
 const sendEmail = require("../utils/sendEmail");
 
+// Set REQUIRE_EMAIL_VERIFICATION=true in .env to block login until verified
+const requireVerification = () =>
+  String(process.env.REQUIRE_EMAIL_VERIFICATION).toLowerCase() === "true";
 
+const hashToken = (token) =>
+  crypto.createHash("sha256").update(token).digest("hex");
+
+// Creates a verification token on the user, saves it, and emails the link.
+// Never throws - a mail failure must not break the request.
+const sendVerificationEmail = async (user) => {
+  const verificationToken = crypto.randomBytes(32).toString("hex");
+
+  user.emailVerificationToken = hashToken(verificationToken);
+  user.emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  await user.save({ validateBeforeSave: false });
+
+  const verifyUrl = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: "Verify Your Email — AI Healthcare",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Welcome to AI Healthcare! 🏥</h2>
+          <p>Hi ${user.name},</p>
+          <p>Thank you for registering. Please verify your email by clicking the button below:</p>
+          <a href="${verifyUrl}"
+             style="display:inline-block; padding:12px 24px; background:#2563eb; color:white;
+                    text-decoration:none; border-radius:6px; margin:16px 0;">
+            Verify Email
+          </a>
+          <p>This link expires in 24 hours.</p>
+          <p>If you did not register, please ignore this email.</p>
+        </div>
+      `,
+    });
+    return true;
+  } catch (emailError) {
+    console.log("Email sending failed:", emailError.message);
+    return false;
+  }
+};
+
+// ─── @desc    Register user
+// ─── @route   POST /api/v1/auth/signup
+// ─── @access  Public
 const register = asyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
 
@@ -17,16 +65,10 @@ const register = asyncHandler(async (req, res) => {
     throw new Error("Email already registered. Please login.");
   }
 
-  // Only allow patient or doctor registration (not admin)
-  const allowedRoles = ["patient", "doctor", "admin"];
+  // SECURITY: public signup can only create patient or doctor accounts.
+  // Admin accounts must be created with scripts/createAdmin.js
+  const allowedRoles = ["patient", "doctor"];
   const userRole = allowedRoles.includes(role) ? role : "patient";
-
-  // Create email verification token
-  const verificationToken = crypto.randomBytes(32).toString("hex");
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(verificationToken)
-    .digest("hex");
 
   // Create user
   const user = await User.create({
@@ -34,8 +76,6 @@ const register = asyncHandler(async (req, res) => {
     email,
     password,
     role: userRole,
-    emailVerificationToken: hashedToken,
-    emailVerificationExpire: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
   });
 
   // Create role-specific profile
@@ -44,31 +84,8 @@ const register = asyncHandler(async (req, res) => {
   }
   // Doctor profile will be completed separately after basic registration
 
-  // Send verification email
-  const verifyUrl = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
-  try {
-    await sendEmail({
-      to: email,
-      subject: "Verify Your Email — AI Healthcare",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2563eb;">Welcome to AI Healthcare! 🏥</h2>
-          <p>Hi ${name},</p>
-          <p>Thank you for registering. Please verify your email by clicking the button below:</p>
-          <a href="${verifyUrl}" 
-             style="display:inline-block; padding:12px 24px; background:#2563eb; color:white; 
-                    text-decoration:none; border-radius:6px; margin:16px 0;">
-            Verify Email
-          </a>
-          <p>This link expires in 24 hours.</p>
-          <p>If you did not register, please ignore this email.</p>
-        </div>
-      `,
-    });
-  } catch (emailError) {
-    console.log("Email sending failed:", emailError.message);
-    // Don't fail registration if email fails
-  }
+  // Send verification email (does not fail registration if mail fails)
+  await sendVerificationEmail(user);
 
   res.status(201).json({
     success: true,
@@ -87,19 +104,13 @@ const register = asyncHandler(async (req, res) => {
 // ─── @route   POST /api/v1/auth/login
 // ─── @access  Public
 const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
 
   // Find user (include password for comparison)
   const user = await User.findOne({ email }).select("+password");
 
-  if (!user) {
-    res.status(401);
-    throw new Error("Invalid email or password.");
-  }
-
-  // Check password
-  const isMatch = await user.comparePassword(password);
-  if (!isMatch) {
+  // Same message for "no user" and "wrong password"
+  if (!user || !(await user.comparePassword(password))) {
     res.status(401);
     throw new Error("Invalid email or password.");
   }
@@ -110,17 +121,29 @@ const login = asyncHandler(async (req, res) => {
     throw new Error("Your account has been suspended. Contact support.");
   }
 
+  // The login page has Patient / Doctor / Admin tabs. If a role was selected,
+  // it must match the account's real role.
+  if (role && role !== user.role) {
+    res.status(403);
+    throw new Error(
+      `This account is not registered as ${role}. Please select the correct role.`,
+    );
+  }
+
+  // Optional: require verified email
+  if (requireVerification() && !user.isVerified) {
+    res.status(403);
+    throw new Error("Please verify your email before logging in.");
+  }
+
   sendTokenResponse(user, 200, res, "Login successful!");
 });
 
 // ─── @desc    Logout user
 // ─── @route   POST /api/v1/auth/logout
-// ─── @access  Private
+// ─── @access  Public (always clears the cookie, even if the token expired)
 const logout = asyncHandler(async (req, res) => {
-  res.cookie("token", "", {
-    expires: new Date(0),
-    httpOnly: true,
-  });
+  res.cookie("token", "", { ...getCookieOptions(), expires: new Date(0) });
 
   res.status(200).json({
     success: true,
@@ -146,11 +169,21 @@ const getProfile = asyncHandler(async (req, res) => {
 const updateProfile = asyncHandler(async (req, res) => {
   const { name, phone, avatar } = req.body;
 
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
-    { name, phone, avatar },
-    { new: true, runValidators: true },
-  );
+  // Only update fields that were actually sent
+  const updates = {};
+  if (name !== undefined) updates.name = String(name).trim();
+  if (phone !== undefined) updates.phone = String(phone).trim();
+  if (avatar !== undefined) updates.avatar = avatar;
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400);
+    throw new Error("No profile fields provided to update.");
+  }
+
+  const user = await User.findByIdAndUpdate(req.user._id, updates, {
+    new: true,
+    runValidators: true,
+  });
 
   res.status(200).json({
     success: true,
@@ -163,13 +196,8 @@ const updateProfile = asyncHandler(async (req, res) => {
 // ─── @route   GET /api/v1/auth/verify-email/:token
 // ─── @access  Public
 const verifyEmail = asyncHandler(async (req, res) => {
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(req.params.token)
-    .digest("hex");
-
   const user = await User.findOne({
-    emailVerificationToken: hashedToken,
+    emailVerificationToken: hashToken(req.params.token),
     emailVerificationExpire: { $gt: Date.now() },
   });
 
@@ -181,7 +209,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
   user.isVerified = true;
   user.emailVerificationToken = undefined;
   user.emailVerificationExpire = undefined;
-  await user.save();
+  await user.save({ validateBeforeSave: false });
 
   res.status(200).json({
     success: true,
@@ -189,25 +217,45 @@ const verifyEmail = asyncHandler(async (req, res) => {
   });
 });
 
-// ─── @desc    Forgot password — send reset email
+// ─── @desc    Resend verification email
+// ─── @route   POST /api/v1/auth/resend-verification
+// ─── @access  Public
+const resendVerification = asyncHandler(async (req, res) => {
+  const user = await User.findOne({ email: req.body.email });
+
+  // Same response whether or not the account exists
+  if (user && !user.isVerified) {
+    await sendVerificationEmail(user);
+  }
+
+  res.status(200).json({
+    success: true,
+    message:
+      "If an unverified account exists for that email, a new verification link has been sent.",
+  });
+});
+
+// ─── @desc    Forgot password - send reset email
 // ─── @route   POST /api/v1/auth/forgot-password
 // ─── @access  Public
 const forgotPassword = asyncHandler(async (req, res) => {
+  const genericResponse = {
+    success: true,
+    message:
+      "If an account exists for that email, a password reset link has been sent.",
+  };
+
   const user = await User.findOne({ email: req.body.email });
 
+  // Do not reveal whether the email is registered
   if (!user) {
-    res.status(404);
-    throw new Error("No account found with that email.");
+    return res.status(200).json(genericResponse);
   }
 
   // Generate reset token
   const resetToken = crypto.randomBytes(32).toString("hex");
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
 
-  user.resetPasswordToken = hashedToken;
+  user.resetPasswordToken = hashToken(resetToken);
   user.resetPasswordExpire = Date.now() + 60 * 60 * 1000; // 1 hour
   await user.save({ validateBeforeSave: false });
 
@@ -222,8 +270,8 @@ const forgotPassword = asyncHandler(async (req, res) => {
           <h2 style="color: #2563eb;">Password Reset</h2>
           <p>Hi ${user.name},</p>
           <p>You requested a password reset. Click the button below to set a new password:</p>
-          <a href="${resetUrl}" 
-             style="display:inline-block; padding:12px 24px; background:#2563eb; color:white; 
+          <a href="${resetUrl}"
+             style="display:inline-block; padding:12px 24px; background:#2563eb; color:white;
                     text-decoration:none; border-radius:6px; margin:16px 0;">
             Reset Password
           </a>
@@ -233,10 +281,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
       `,
     });
 
-    res.status(200).json({
-      success: true,
-      message: "Password reset email sent. Check your inbox.",
-    });
+    res.status(200).json(genericResponse);
   } catch (error) {
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
@@ -251,13 +296,8 @@ const forgotPassword = asyncHandler(async (req, res) => {
 // ─── @route   POST /api/v1/auth/reset-password/:token
 // ─── @access  Public
 const resetPassword = asyncHandler(async (req, res) => {
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(req.params.token)
-    .digest("hex");
-
   const user = await User.findOne({
-    resetPasswordToken: hashedToken,
+    resetPasswordToken: hashToken(req.params.token),
     resetPasswordExpire: { $gt: Date.now() },
   });
 
@@ -281,6 +321,7 @@ module.exports = {
   getProfile,
   updateProfile,
   verifyEmail,
+  resendVerification,
   forgotPassword,
   resetPassword,
 };

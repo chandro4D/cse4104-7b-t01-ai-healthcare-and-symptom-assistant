@@ -11,12 +11,8 @@ import {
   FaUsers,
   FaCartPlus,
   FaList,
-  FaBook,
+
   FaEnvelope,
-  FaBox,
-  FaWallet,
-  FaMapMarkerAlt,
-  FaHeadset,
   FaUserMd,
 } from "react-icons/fa";
 import { MdOutlineManageAccounts } from "react-icons/md";
@@ -81,36 +77,26 @@ function Dashboard() {
                 <SidebarLink to="/dashboard/adminHome" icon={<FaHome />}>
                   Dashboard
                 </SidebarLink>
-                <SidebarLink to="/dashboard/adminAnalytics" icon={<FaList />}>
-                  Analytics
+                <SidebarLink to="/dashboard/userManagement" icon={<FaList />}>
+                  User Management
                 </SidebarLink>
-                <SidebarLink to="/dashboard/manageUsers" icon={<FaUsers />}>
-                  Manage Users
+                <SidebarLink to="/dashboard/doctorVerification" icon={<FaUsers />}>
+                  Doctors Management
                 </SidebarLink>
                 <SidebarLink
-                  to="/dashboard/manageProducts"
+                  to="/dashboard/appointmentOverview"
                   icon={<FaCartPlus />}
                 >
-                  Manage Products
+                  Appointment Overview
                 </SidebarLink>
                 <SidebarLink
-                  to="/dashboard/manageCategory"
+                  to="/dashboard/auditAndSecurity"
                   icon={<MdOutlineManageAccounts />}
                 >
-                  Manage Categories
+                  Audit Logs & Security
                 </SidebarLink>
-                <SidebarLink
-                  to="/dashboard/adminManageBanner"
-                  icon={<MdOutlineManageAccounts />}
-                >
-                  Manage Banners
-                </SidebarLink>
-                <SidebarLink to="/dashboard/orders" icon={<FaList />}>
-                  Orders & Payments
-                </SidebarLink>
-                <SidebarLink to="/dashboard/adminSalesReport" icon={<FaBook />}>
-                  Sales Report
-                </SidebarLink>
+                
+                
                 <SidebarLink
                   to="/dashboard/notifications"
                   icon={<FaEnvelope />}
@@ -129,30 +115,29 @@ function Dashboard() {
             {role === "doctor" && (
               <>
                 <SectionLabel>Doctor</SectionLabel>
-                <SidebarLink to="/dashboard/seller" icon={<FaHome />}>
+                <SidebarLink to="/dashboard/doctorHome" icon={<FaHome />}>
                   Dashboard
                 </SidebarLink>
                 <SidebarLink
-                  to="/dashboard/manageSellerProducts"
-                  icon={<FaBox />}
+                  to="/dashboard/appointmentManagement"
+                  icon={<FaCalendarAlt />}
                 >
-                  My Products
-                </SidebarLink>
-                <SidebarLink to="/dashboard/addProduct" icon={<FaCartPlus />}>
-                  Add Product
-                </SidebarLink>
-                <SidebarLink to="/dashboard/sellerOrders" icon={<FaList />}>
-                  Orders
+                  Appointment Management
                 </SidebarLink>
                 <SidebarLink
-                  to="/dashboard/sellerPaymentHistory"
-                  icon={<FaWallet />}
+                  to="/dashboard/patientVisitRequests"
+                  icon={<FaUsers />}
                 >
-                  Earnings
+                  Patient Visit Requests
                 </SidebarLink>
-                <SidebarLink to="/dashboard/sellerAd" icon={<FaEnvelope />}>
-                  Advertisements
+                
+                <SidebarLink to="/dashboard/patientRecordsDetails" icon={<FaCartPlus />}>
+                  Patient Details 
                 </SidebarLink>
+                <SidebarLink to="/dashboard/doctorProfileAndAvailability" icon={<FaUser />}>
+                  Profile & Availability
+                </SidebarLink>
+                
                 <SidebarLink to="/dashboard/settings" icon={<FaUser />}>
                   Profile
                 </SidebarLink>

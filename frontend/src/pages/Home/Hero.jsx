@@ -42,7 +42,7 @@ function Hero() {
               <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight mt-7">
                 Your Health
                 <br />
-                Guided by
+                Guided By
                 <span className="text-emerald-500 block">Intelligent AI</span>
               </h1>
 
@@ -54,7 +54,7 @@ function Hero() {
               </p>
 
               <div className="mt-10 flex flex-wrap gap-5">
-                <button className="bg-emerald-500 hover:bg-emerald-600 transition-all duration-300 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:scale-105">
+                <button onClick={() => (window.location.href = "/dashboard/symptomChecker")}  className="bg-emerald-500 hover:bg-emerald-600 transition-all duration-300 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:scale-105">
                   Start Symptom Check
                 </button>
 

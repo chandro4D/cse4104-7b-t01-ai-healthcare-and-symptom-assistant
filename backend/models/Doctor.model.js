@@ -2,6 +2,13 @@ const mongoose = require("mongoose");
 
 const doctorSchema = new mongoose.Schema(
   {
+    // User account linked to this doctor profile.
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     name: {
       type: String,
       required: true,
@@ -19,6 +26,7 @@ const doctorSchema = new mongoose.Schema(
     phone: {
       type: String,
       trim: true,
+      default: "",
     },
 
     specialty: {
@@ -68,6 +76,7 @@ const doctorSchema = new mongoose.Schema(
       min: 0,
     },
 
+    // Verification and access control.
     isVerified: {
       type: Boolean,
       default: false,
@@ -77,9 +86,88 @@ const doctorSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+
+    verifiedAt: {
+      type: Date,
+      default: null,
+    },
+
+    rejectionReason: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 500,
+    },
+
+    qualifications: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    licenseNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    visitTypes: {
+      type: [String],
+      default: ["In-person"],
+    },
+
+    schedule: {
+      slotMinutes: {
+        type: Number,
+        default: 30,
+      },
+      weekly: [
+        {
+          _id: false,
+          day: {
+            type: Number,
+            min: 0,
+            max: 6,
+          },
+          enabled: {
+            type: Boolean,
+            default: false,
+          },
+          start: {
+            type: String,
+            default: "09:00",
+          },
+          end: {
+            type: String,
+            default: "17:00",
+          },
+        },
+      ],
+    },
+
+    daysOff: {
+      type: [String],
+      default: [],
+    },
+
+    pendingChanges: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   {
     timestamps: true,
+  },
+);
+
+// A linked user can own only one doctor profile.
+doctorSchema.index(
+  { user: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      user: { $type: "objectId" },
+    },
   },
 );
 
