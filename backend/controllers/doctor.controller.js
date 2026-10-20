@@ -1,154 +1,121 @@
-const asyncHandler = require("express-async-handler");
-const User = require("../models/User.model");
-const Doctor = require("../models/Doctor.model");
-const Prescription = require("../models/Prescription.model");
+const doctorService = require("../services/Doctor.service");
 
-// ─── @desc    Get all verified doctors (with filters)
-// ─── @route   GET /api/v1/doctors
-// ─── @access  Public
-const getAllDoctors = asyncHandler(async (req, res) => {
-  const { specialization, location, available } = req.query;
+const getDoctors = async (req, res, next) => {
+  try {
+    const { search = "", specialty = "All", page = 1, limit = 9 } = req.query;
 
-  // Build filter
-  let filter = { isVerified: true };
-  if (specialization) filter.specialization = new RegExp(specialization, "i");
-  if (location) filter.location = new RegExp(location, "i");
-
-  const doctors = await Doctor.find(filter)
-    .populate("userId", "name email avatar phone")
-    .sort({ rating: -1 });
-
-  res.status(200).json({
-    success: true,
-    count: doctors.length,
-    data: doctors,
-  });
-});
-
-// ─── @desc    Get doctor by ID
-// ─── @route   GET /api/v1/doctors/:id
-// ─── @access  Public
-const getDoctorById = asyncHandler(async (req, res) => {
-  const doctor = await Doctor.findOne({ userId: req.params.id }).populate(
-    "userId",
-    "name email avatar phone",
-  );
-
-  if (!doctor) {
-    res.status(404);
-    throw new Error("Doctor not found.");
-  }
-
-  res.status(200).json({ success: true, data: doctor });
-});
-
-// ─── @desc    Create/update doctor profile
-// ─── @route   PUT /api/v1/doctors/profile
-// ─── @access  Doctor
-const updateDoctorProfile = asyncHandler(async (req, res) => {
-  const {
-    specialization,
-    licenseNumber,
-    qualifications,
-    experience,
-    consultationFee,
-    hospital,
-    location,
-    bio,
-    availability,
-  } = req.body;
-
-  let doctor = await Doctor.findOne({ userId: req.user._id });
-
-  if (doctor) {
-    // Update existing
-    doctor = await Doctor.findOneAndUpdate(
-      { userId: req.user._id },
-      {
-        specialization,
-        licenseNumber,
-        qualifications,
-        experience,
-        consultationFee,
-        hospital,
-        location,
-        bio,
-        availability,
-      },
-      { new: true, runValidators: true },
-    );
-  } else {
-    // Create new doctor profile
-    doctor = await Doctor.create({
-      userId: req.user._id,
-      specialization,
-      licenseNumber,
-      qualifications,
-      experience,
-      consultationFee,
-      hospital,
-      location,
-      bio,
-      availability,
+    const result = await doctorService.getDoctors({
+      search,
+      specialty,
+      page: Number(page),
+      limit: Number(limit),
     });
+
+    res.status(200).json({
+      success: true,
+      message: "Doctors fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
   }
+};
 
-  res.status(200).json({
-    success: true,
-    message: "Doctor profile updated successfully.",
-    data: doctor,
-  });
-});
+const getDoctorById = async (req, res, next) => {
+  try {
+    const doctor = await doctorService.getDoctorById(req.params.id);
 
-// ─── @desc    Create digital prescription
-// ─── @route   POST /api/v1/doctors/prescriptions
-// ─── @access  Doctor
-const createPrescription = asyncHandler(async (req, res) => {
-  const {
-    patientId,
-    appointmentId,
-    diagnosis,
-    medicines,
-    advice,
-    followUpDate,
-  } = req.body;
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
 
-  const prescription = await Prescription.create({
-    doctorId: req.user._id,
-    patientId,
-    appointmentId,
-    diagnosis,
-    medicines,
-    advice,
-    followUpDate,
-  });
+    res.status(200).json({
+      success: true,
+      message: "Doctor fetched successfully",
+      data: doctor,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
-  res.status(201).json({
-    success: true,
-    message: "Prescription created successfully.",
-    data: prescription,
-  });
-});
+const createDoctor = async (req, res, next) => {
+  try {
+    const doctor = await doctorService.createDoctor(req.body);
 
-// ─── @desc    Get doctor's prescriptions
-// ─── @route   GET /api/v1/doctors/prescriptions
-// ─── @access  Doctor
-const getDoctorPrescriptions = asyncHandler(async (req, res) => {
-  const prescriptions = await Prescription.find({ doctorId: req.user._id })
-    .populate("patientId", "name email")
-    .sort({ createdAt: -1 });
+    res.status(201).json({
+      success: true,
+      message: "Doctor created successfully",
+      data: doctor,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
-  res.status(200).json({
-    success: true,
-    count: prescriptions.length,
-    data: prescriptions,
-  });
-});
+const updateDoctor = async (req, res, next) => {
+  try {
+    const doctor = await doctorService.updateDoctor(req.params.id, req.body);
+
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Doctor updated successfully",
+      data: doctor,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteDoctor = async (req, res, next) => {
+  try {
+    const doctor = await doctorService.deleteDoctor(req.params.id);
+
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Doctor removed successfully",
+      data: doctor,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getSpecialties = async (req, res, next) => {
+  try {
+    const specialties = await doctorService.getSpecialties();
+
+    res.status(200).json({
+      success: true,
+      data: specialties,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 module.exports = {
-  getAllDoctors,
+  getDoctors,
   getDoctorById,
-  updateDoctorProfile,
-  createPrescription,
-  getDoctorPrescriptions,
+  createDoctor,
+  updateDoctor,
+  deleteDoctor,
+  getSpecialties,
 };

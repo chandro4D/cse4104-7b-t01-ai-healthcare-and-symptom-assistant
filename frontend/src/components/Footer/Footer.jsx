@@ -19,7 +19,7 @@ function Footer() {
             </div>
 
             <p className="mt-4 text-sm text-gray-400 leading-relaxed">
-              Your AI Healthcare Companion — instant symptom insights, guidance,
+             Our AI Healthcare Companion instant symptom insights, guidance,
               and support whenever you need it.
             </p>
             <div className="flex items-center gap-4 mt-5">

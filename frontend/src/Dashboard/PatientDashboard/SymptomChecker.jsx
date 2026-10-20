@@ -1,33 +1,19 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, Send, Bell, ShieldAlert, Sparkles } from "lucide-react";
+import {
+  Mic,
+  Send,
+  Bell,
+  ShieldAlert,
+  Sparkles,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import axios from "axios";
 import MedicalResponse from "./MedicalResponse";
 
-// Demo Initial Messages
-// const INITIAL_MESSAGES = [
-//   {
-//     role: "ai",
-//     text: "Hello Rafiul. I can help you understand possible causes for your symptoms and suggest which department to consult. What are you experiencing today?",
-//   },
-//   {
-//     role: "user",
-//     text: "I've had a persistent headache for 3 days, mostly on the right side, and I feel a bit dizzy when I stand up quickly.",
-//   },
-//   {
-//     role: "ai",
-//     text: "Thanks for the detail. A few quick questions to refine this:",
-//     chips: ["Fever present", "No fever", "Worse with light", "Blurred vision"],
-//   },
-//   {
-//     role: "user",
-//     text: "No fever, but it does feel worse in bright light.",
-//   },
-//   {
-//     role: "ai",
-//     text: "Based on the pattern — one-sided headache, light sensitivity, and dizziness on standing — this is consistent with a tension or migraine-type headache, possibly linked to mild dehydration or blood pressure changes. I've updated the analysis panel on the right. I'd recommend a General Medicine consultation if symptoms persist beyond 2 more days.",
-//   },
-// ];
+// Set VITE_API_URL in your .env for production, e.g. https://api.yoursite.com
+const API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/v1/ai`;
 
 const INITIAL_MESSAGES = [
   {
@@ -36,28 +22,18 @@ const INITIAL_MESSAGES = [
   },
 ];
 
-const CONDITIONS = [
-  {
-    name: "Tension Headache",
-    note: "Common, often stress or posture related",
-    match: 68,
-  },
-  {
-    name: "Migraine (without aura)",
-    note: "Light sensitivity is a key indicator",
-    match: 54,
-  },
-  {
-    name: "Mild Orthostatic Hypotension",
-    note: "Linked to dizziness on standing",
-    match: 31,
-  },
-];
+const SEVERITY_POSITION = {
+  Low: "12%",
+  Moderate: "45%",
+  High: "70%",
+  Urgent: "92%",
+};
 
-const DEPARTMENTS = [
-  { name: "General Medicine", match: 87 },
-  { name: "Neurology", match: 41 },
-];
+const SEVERITY_ADVICE = {
+  Low: "Self-care is usually enough. See a doctor if symptoms last or get worse.",
+  Moderate: "Consider seeing a doctor within a day or two.",
+  High: "Please seek medical care soon, ideally today.",
+};
 
 function severityColor(level) {
   if (level === "Low") return "text-emerald-600";
@@ -66,332 +42,173 @@ function severityColor(level) {
   return "text-rose-600";
 }
 
-const healthKeywords = [
-  // General symptoms
-  "fever",
-  "high fever",
-  "low fever",
-  "temperature",
-  "chills",
-  "shivering",
-  "fatigue",
-  "tired",
-  "weakness",
-  "exhaustion",
-  "malaise",
+function severityDot(level) {
+  if (level === "Low") return "bg-emerald-500";
+  if (level === "Moderate") return "bg-amber-400";
+  if (level === "High") return "bg-orange-500";
+  if (level === "Urgent") return "bg-rose-500";
+  return "bg-stone-300";
+}
 
-  // Pain
-  "pain",
-  "ache",
-  "headache",
-  "migraine",
-  "neck pain",
-  "back pain",
-  "shoulder pain",
-  "arm pain",
-  "leg pain",
-  "knee pain",
-  "joint pain",
-  "muscle pain",
-  "body pain",
-  "chest pain",
-  "abdominal pain",
-  "stomach pain",
-  "pelvic pain",
-  "toothache",
-  "ear pain",
+// Reads the logged-in user's name from localStorage ("user").
+// If you keep the user in a context or Redux store, change this one function.
+function getInitials() {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const name = user.name || user.fullName || user.username || "";
+    const letters = name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase();
+    return letters || "U";
+  } catch {
+    return "U";
+  }
+}
 
-  // Neurological
-  "dizzy",
-  "dizziness",
-  "vertigo",
-  "fainting",
-  "fainted",
-  "blackout",
-  "numbness",
-  "tingling",
-  "seizure",
-  "convulsion",
-  "tremor",
-  "shaking",
-  "confusion",
-  "memory loss",
-  "difficulty speaking",
-  "slurred speech",
-  "blurred vision",
-  "double vision",
-  "vision loss",
+const authConfig = () => ({
+  withCredentials: true,
+  headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+});
 
-  // Respiratory
-  "cough",
-  "dry cough",
-  "wet cough",
-  "breathing",
-  "shortness of breath",
-  "difficulty breathing",
-  "wheezing",
-  "asthma",
-  "congestion",
-  "runny nose",
-  "stuffy nose",
-  "sore throat",
-  "throat pain",
-  "sneezing",
-  "sinus",
-  "sinus pain",
-  "phlegm",
-  "mucus",
+function errorText(err, fallback) {
+  if (err?.response?.status === 401) {
+    return "Your session has expired. Please log in again.";
+  }
+  return err?.response?.data?.message || fallback;
+}
 
-  // Gastrointestinal
-  "nausea",
-  "vomiting",
-  "diarrhea",
-  "constipation",
-  "bloating",
-  "indigestion",
-  "heartburn",
-  "acid reflux",
-  "gas",
-  "loss of appetite",
-  "abdominal swelling",
-  "blood in stool",
-  "black stool",
+function formatDate(value) {
+  if (!value) return "";
+  return new Date(value).toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
-  // Cardiovascular
-  "chest",
-  "heart",
-  "palpitations",
-  "rapid heartbeat",
-  "slow heartbeat",
-  "irregular heartbeat",
-  "high blood pressure",
-  "low blood pressure",
-  "hypertension",
-  "hypotension",
-  "swelling",
-  "leg swelling",
-  "ankle swelling",
-  "faint",
-  "collapse",
-
-  // Skin
-  "skin",
-  "rash",
-  "itching",
-  "itchy",
-  "hives",
-  "eczema",
-  "psoriasis",
-  "acne",
-  "blisters",
-  "ulcer",
-  "wound",
-  "cut",
-  "burn",
-  "bruise",
-  "redness",
-  "infection",
-  "pus",
-  "skin discoloration",
-
-  // Urinary
-  "urination",
-  "frequent urination",
-  "burning urination",
-  "painful urination",
-  "blood in urine",
-  "urinary tract infection",
-  "uti",
-  "kidney pain",
-
-  // Endocrine / metabolic
-  "diabetes",
-  "high sugar",
-  "low sugar",
-  "thyroid",
-  "weight loss",
-  "weight gain",
-  "excessive thirst",
-  "frequent hunger",
-  "night sweats",
-
-  // Infectious diseases
-  "flu",
-  "cold",
-  "covid",
-  "covid-19",
-  "dengue",
-  "malaria",
-  "typhoid",
-  "hepatitis",
-  "tuberculosis",
-  "tb",
-  "viral infection",
-  "bacterial infection",
-  "fungal infection",
-
-  // Women’s health
-  "pregnancy",
-  "pregnant",
-  "missed period",
-  "irregular period",
-  "heavy bleeding",
-  "vaginal bleeding",
-  "vaginal discharge",
-  "menstrual pain",
-  "pcos",
-  "ovarian pain",
-
-  // Men’s health
-  "testicular pain",
-  "prostate",
-  "erectile dysfunction",
-
-  // Mental / psychological
-  "anxiety",
-  "anxious",
-  "panic attack",
-  "panic",
-  "depression",
-  "depressed",
-  "stress",
-  "stressed",
-  "insomnia",
-  "can't sleep",
-  "sleep problem",
-  "nightmare",
-  "mood swings",
-  "irritable",
-  "hopeless",
-  "worthless",
-  "crying",
-  "overthinking",
-  "fear",
-  "phobia",
-  "ocd",
-  "ptsd",
-  "bipolar",
-  "hallucination",
-  "hearing voices",
-  "paranoia",
-  "suicidal",
-  "self-harm",
-
-  // Allergies
-  "allergy",
-  "allergic reaction",
-  "swollen lips",
-  "swollen tongue",
-  "anaphylaxis",
-
-  // Injury / emergency
-  "fracture",
-  "broken bone",
-  "sprain",
-  "strain",
-  "dislocation",
-  "head injury",
-  "trauma",
-  "accident",
-  "bleeding",
-  "severe bleeding",
-
-  // Medical care
-  "medicine",
-  "medication",
-  "tablet",
-  "capsule",
-  "antibiotic",
-  "doctor",
-  "hospital",
-  "clinic",
-  "appointment",
-  "symptom",
-  "diagnosis",
-  "treatment",
-  "prescription",
-];
 export default function SymptomChecker() {
-  const [symptoms, setsymptoms] = useState(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [conversations, setConversations] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [error, setError] = useState("");
   const scrollRef = useRef(null);
 
-  // const isHealthRelated = (text) => {
-  //   return healthKeywords.some((keyword) =>
-  //     text.toLowerCase().includes(keyword.toLowerCase()),
-  //   );
-  // };
-  const isHealthRelated = (text) => {
-    const lower = text.toLowerCase();
+  const initials = getInitials();
 
-    if (healthKeywords.some((k) => lower.includes(k))) return true;
-
-    // Minimum symptom-like sentence
-    return lower.split(" ").length >= 3;
-  };
-
+  // Auto-scroll to the newest message
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [symptoms, isTyping]);
+  }, [messages, isTyping]);
 
-  const send = async (text) => {
-    const trimmed = (text ?? input).trim();
-    if (!trimmed) return;
+  // Load this user's consultation history
+  const loadConversations = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/conversations`, authConfig());
+      setConversations(data.conversations || []);
+    } catch (err) {
+      setError(errorText(err, "Could not load your consultation history."));
+    } finally {
+      setListLoading(false);
+    }
+  }, []);
 
-    // Frontend validation
-    if (!isHealthRelated(trimmed)) {
-      setsymptoms((s) => [
-        ...s,
-        { role: "user", text: trimmed },
-        {
-          role: "ai",
-          text: "I am a healthcare symptom assistant and can only help with health-related questions...",
-        },
-      ]);
-      setInput("");
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  const newChat = () => {
+    if (isTyping) return;
+    setActiveId(null);
+    setMessages(INITIAL_MESSAGES);
+    setAnalysis(null);
+    setInput("");
+    setError("");
+  };
+
+  const openConversation = async (id) => {
+    if (isTyping || chatLoading || id === activeId) return;
+
+    setChatLoading(true);
+    setError("");
+
+    try {
+      const { data } = await axios.get(
+        `${API}/conversations/${id}`,
+        authConfig(),
+      );
+      const convo = data.conversation;
+
+      setActiveId(convo._id);
+      setMessages([...INITIAL_MESSAGES, ...convo.messages]);
+      setAnalysis(convo.analysis || null);
+    } catch (err) {
+      setError(errorText(err, "Could not open this consultation."));
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const deleteConversation = async (e, id) => {
+    e.stopPropagation();
+    if (isTyping) return;
+    if (!window.confirm("Delete this consultation? This cannot be undone.")) {
       return;
     }
 
-    // Add user message immediately
-    const updatedMessages = [...symptoms, { role: "user", text: trimmed }];
+    try {
+      await axios.delete(`${API}/conversations/${id}`, authConfig());
+      setConversations((list) => list.filter((c) => c._id !== id));
+      if (id === activeId) newChat();
+    } catch (err) {
+      setError(errorText(err, "Could not delete this consultation."));
+    }
+  };
 
-    setsymptoms(updatedMessages);
+  const send = async () => {
+    const text = input.trim();
+    if (!text || isTyping || chatLoading) return;
+
+    // Show the user's message immediately
+    setMessages((m) => [...m, { role: "user", text }]);
     setInput("");
+    setError("");
     setIsTyping(true);
 
     try {
-      const token = localStorage.getItem("token");
-
-      const res = await axios.post(
-        "http://localhost:5000/api/v1/ai/symptom-check",
-        {
-          symptoms: updatedMessages,
-        },
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+      const { data } = await axios.post(
+        `${API}/symptom-check`,
+        { conversationId: activeId, message: text },
+        authConfig(),
       );
 
-      setsymptoms((s) => [
-        ...s,
+      if (data.conversationId) setActiveId(data.conversationId);
+      setMessages((m) => [...m, { role: "ai", text: data.reply }]);
+      if (data.analysis) setAnalysis(data.analysis);
+
+      // Refresh the sidebar (new title / new order) for saved health chats
+      if (data.isHealthQuery !== false) loadConversations();
+    } catch (err) {
+      setMessages((m) => [
+        ...m,
         {
           role: "ai",
-          text: res.data.reply,
-        },
-      ]);
-    } catch (error) {
-      setsymptoms((s) => [
-        ...s,
-        {
-          role: "ai",
-          text: "Sorry, the symptom assistant is temporarily unavailable. Please try again in a moment.",
+          text: errorText(
+            err,
+            "Sorry, the symptom assistant is temporarily unavailable. Please try again in a moment.",
+          ),
         },
       ]);
     } finally {
@@ -421,15 +238,82 @@ export default function SymptomChecker() {
               <Bell className="h-4 w-4" />
             </button>
             <div className="grid h-9 w-9 place-items-center rounded-full bg-emerald-700 text-sm font-semibold text-white">
-              RI
+              {initials}
             </div>
           </div>
         </header>
 
         {/* Body */}
         <div className="flex flex-1 gap-6 overflow-hidden p-6">
+          {/* History sidebar */}
+          <aside className="flex h-[calc(100vh-9rem)] min-h-[480px] w-64 shrink-0 flex-col rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+            <button
+              onClick={newChat}
+              disabled={isTyping}
+              className="mb-3 flex items-center justify-center gap-2 rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" />
+              New consultation
+            </button>
+
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+              Your consultations
+            </p>
+
+            <div className="flex-1 space-y-1 overflow-y-auto">
+              {listLoading && (
+                <p className="text-xs text-stone-400">Loading…</p>
+              )}
+
+              {!listLoading && conversations.length === 0 && (
+                <p className="text-xs text-stone-400">
+                  No past consultations yet.
+                </p>
+              )}
+
+              {conversations.map((c) => (
+                <div key={c._id} className="group relative">
+                  <button
+                    onClick={() => openConversation(c._id)}
+                    disabled={isTyping || chatLoading}
+                    className={`w-full rounded-lg px-3 py-2 pr-9 text-left transition hover:bg-stone-50 disabled:opacity-60 ${
+                      activeId === c._id ? "bg-emerald-50" : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`h-2 w-2 shrink-0 rounded-full ${severityDot(
+                          c.analysis?.severity,
+                        )}`}
+                      />
+                      <p
+                        className={`truncate text-sm font-medium ${
+                          activeId === c._id
+                            ? "text-emerald-800"
+                            : "text-stone-700"
+                        }`}
+                      >
+                        {c.title}
+                      </p>
+                    </div>
+                    <p className="mt-0.5 pl-4 text-[11px] text-stone-400">
+                      {formatDate(c.updatedAt)}
+                    </p>
+                  </button>
+                  <button
+                    aria-label="Delete consultation"
+                    onClick={(e) => deleteConversation(e, c._id)}
+                    className="absolute right-2 top-2 rounded p-1 text-stone-400 opacity-0 transition hover:bg-stone-100 hover:text-rose-600 focus:opacity-100 group-hover:opacity-100"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </aside>
+
           {/* Chat panel */}
-          <div className="flex h-[540px] flex-col rounded-2xl border border-stone-200 bg-white shadow-sm">
+          <div className="flex h-[calc(100vh-9rem)] min-h-[480px] min-w-0 flex-1 flex-col rounded-2xl border border-stone-200 bg-white shadow-sm">
             <div className="flex items-center gap-3 border-b border-stone-100 px-6 py-4">
               <div className="grid h-9 w-9 place-items-center rounded-full bg-emerald-700 text-white">
                 <Sparkles className="h-4 w-4" />
@@ -439,22 +323,35 @@ export default function SymptomChecker() {
                   Symptom Assistant
                 </p>
                 <p className="text-xs text-stone-400">
-                  Powered by OpenAI · Trained on triage guidelines
+                  Powered by Gemini AI · Your consultations are saved to your
+                  account
                 </p>
               </div>
             </div>
 
             <div
               ref={scrollRef}
-              className="flex-1 space-y-4 overflow-y-auto px-6 py-2"
+              className="flex-1 space-y-4 overflow-y-auto px-6 py-4"
             >
-              {symptoms.map((m, i) => (
-                <ChatBubble key={i} msg={m} onChip={send} />
-              ))}
+              {chatLoading ? (
+                <p className="text-sm text-stone-400">
+                  Loading consultation…
+                </p>
+              ) : (
+                messages.map((m, i) => (
+                  <ChatBubble key={m._id || i} msg={m} initials={initials} />
+                ))
+              )}
               <AnimatePresence>{isTyping && <TypingBubble />}</AnimatePresence>
             </div>
 
-            <div className="flex items-center gap-3 border-t border-stone-100 px-6 py-2">
+            {error && (
+              <p className="border-t border-rose-100 bg-rose-50 px-6 py-2 text-xs font-medium text-rose-700">
+                {error}
+              </p>
+            )}
+
+            <div className="flex items-center gap-3 border-t border-stone-100 px-6 py-3">
               <button className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-stone-200 text-stone-500 hover:bg-stone-50">
                 <Mic className="h-4 w-4" />
               </button>
@@ -462,24 +359,25 @@ export default function SymptomChecker() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
+                maxLength={2000}
                 placeholder="Describe how you're feeling..."
                 className="flex-1 rounded-full border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
               />
               <button
-                disabled={isTyping}
-                onClick={() => send()}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-700 text-white transition hover:bg-emerald-800 active:scale-95"
+                disabled={isTyping || chatLoading || !input.trim()}
+                onClick={send}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-700 text-white transition hover:bg-emerald-800 active:scale-95 disabled:opacity-50"
               >
                 <Send className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          {/* Right analysis panel */}
-          <div className="flex w-80 shrink-0 flex-col gap-5 overflow-y-auto">
-            <SeverityCard level="Moderate" />
-            <ConditionsCard />
-            <DepartmentsCard />
+          {/* Right analysis panel (real data from the latest AI answer) */}
+          <div className="flex h-[calc(100vh-9rem)] min-h-[480px] w-80 shrink-0 flex-col gap-5 overflow-y-auto">
+            <SeverityCard level={analysis?.severity} />
+            <ConditionsCard items={analysis?.conditions || []} />
+            <DepartmentsCard items={analysis?.departments || []} />
           </div>
         </div>
       </div>
@@ -487,7 +385,7 @@ export default function SymptomChecker() {
   );
 }
 
-function ChatBubble({ msg, onChip }) {
+function ChatBubble({ msg, initials }) {
   const isAI = msg.role === "ai";
   return (
     <motion.div
@@ -501,7 +399,7 @@ function ChatBubble({ msg, onChip }) {
           isAI ? "bg-emerald-700 text-white" : "bg-stone-200 text-stone-600"
         }`}
       >
-        {isAI ? "AI" : "RI"}
+        {isAI ? "AI" : initials}
       </div>
       <div className={`max-w-[80%] ${isAI ? "" : "flex flex-col items-end"}`}>
         <div
@@ -521,19 +419,6 @@ function ChatBubble({ msg, onChip }) {
             msg.text
           )}
         </div>
-        {msg.chips && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {msg.chips.map((chip) => (
-              <button
-                key={chip}
-                onClick={() => onChip(chip)}
-                className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:border-emerald-600 hover:text-emerald-700"
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </motion.div>
   );
@@ -565,21 +450,20 @@ function TypingBubble() {
 }
 
 function SeverityCard({ level }) {
-  const position = { Low: "12%", Moderate: "45%", High: "70%", Urgent: "92%" }[
-    level
-  ];
   return (
     <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-bold text-stone-900">
         Severity Assessment
       </h3>
       <div className="relative mb-2 h-2 w-full rounded-full bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500">
-        <motion.div
-          initial={{ left: "0%" }}
-          animate={{ left: position }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="absolute -top-1 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-white bg-stone-900 shadow"
-        />
+        {level && (
+          <motion.div
+            initial={{ left: "0%" }}
+            animate={{ left: SEVERITY_POSITION[level] ?? "0%" }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="absolute -top-1 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-white bg-stone-900 shadow"
+          />
+        )}
       </div>
       <div className="mb-3 flex justify-between text-[10px] font-medium uppercase tracking-wide text-stone-400">
         <span>Low</span>
@@ -587,65 +471,97 @@ function SeverityCard({ level }) {
         <span>High</span>
         <span>Urgent</span>
       </div>
-      <p className="text-sm leading-relaxed text-stone-500">
-        Current assessment:{" "}
-        <span className={`font-semibold ${severityColor(level)}`}>{level}</span>{" "}
-        — monitor for 48 hours. Seek urgent care if vision loss, slurred speech,
-        or numbness occurs.
-      </p>
+
+      {level ? (
+        <p className="text-sm leading-relaxed text-stone-500">
+          Current assessment:{" "}
+          <span className={`font-semibold ${severityColor(level)}`}>
+            {level}
+          </span>
+          {SEVERITY_ADVICE[level] ? ` — ${SEVERITY_ADVICE[level]}` : ""}
+        </p>
+      ) : (
+        <p className="text-sm text-stone-400">
+          Describe your symptoms to see an assessment.
+        </p>
+      )}
+
+      {level === "Urgent" && (
+        <p className="mt-3 rounded-lg bg-rose-50 p-3 text-xs font-semibold leading-relaxed text-rose-700">
+          This may be an emergency. Please contact emergency services or go to
+          the nearest hospital now.
+        </p>
+      )}
     </div>
   );
 }
 
-function ConditionsCard() {
+function ConditionsCard({ items }) {
   return (
     <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-bold text-stone-900">
         Possible Conditions
       </h3>
-      <div className="space-y-4">
-        {CONDITIONS.map((c, i) => (
-          <div key={c.name}>
-            <div className="mb-1 flex items-baseline justify-between">
-              <span className="text-sm font-semibold text-stone-800">
-                {c.name}
-              </span>
-              <span className="text-xs font-semibold text-emerald-700">
-                {c.match}%
-              </span>
+      {items.length === 0 ? (
+        <p className="text-xs text-stone-400">No data yet.</p>
+      ) : (
+        <div className="space-y-4">
+          {items.map((c, i) => (
+            <div key={`${c.name}-${i}`}>
+              <div className="mb-1 flex items-baseline justify-between gap-2">
+                <span className="text-sm font-semibold text-stone-800">
+                  {c.name}
+                </span>
+                <span className="text-xs font-semibold text-emerald-700">
+                  {c.match}%
+                </span>
+              </div>
+              {c.note && (
+                <p className="mb-1.5 text-xs text-stone-400">{c.note}</p>
+              )}
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-100">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${c.match}%` }}
+                  transition={{
+                    duration: 0.9,
+                    delay: 0.15 * i,
+                    ease: "easeOut",
+                  }}
+                  className="h-full rounded-full bg-emerald-600"
+                />
+              </div>
             </div>
-            <p className="mb-1.5 text-xs text-stone-400">{c.note}</p>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-100">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${c.match}%` }}
-                transition={{ duration: 0.9, delay: 0.15 * i, ease: "easeOut" }}
-                className="h-full rounded-full bg-emerald-600"
-              />
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function DepartmentsCard() {
+function DepartmentsCard({ items }) {
   return (
     <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
       <h3 className="mb-4 text-sm font-bold text-stone-900">
         Recommended Departments
       </h3>
-      <div className="space-y-3">
-        {DEPARTMENTS.map((d) => (
-          <div key={d.name} className="flex items-center justify-between">
-            <span className="text-sm text-stone-700">{d.name}</span>
-            <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-              {d.match}% match
-            </span>
-          </div>
-        ))}
-      </div>
+      {items.length === 0 ? (
+        <p className="text-xs text-stone-400">No data yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {items.map((d, i) => (
+            <div
+              key={`${d.name}-${i}`}
+              className="flex items-center justify-between gap-2"
+            >
+              <span className="text-sm text-stone-700">{d.name}</span>
+              <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                {d.match}% match
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
