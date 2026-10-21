@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   FaSearch,
-  FaBell,
+  // FaBell,
   FaHeart,
   FaFileAlt,
   FaVideo,
@@ -217,16 +217,16 @@ function storedUserName() {
   }
 }
 
-function getInitials(name) {
-  const letters = String(name || "")
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
-  return letters || "U";
-}
+// function getInitials(name) {
+//   const letters = String(name || "")
+//     .trim()
+//     .split(/\s+/)
+//     .slice(0, 2)
+//     .map((word) => word[0])
+//     .join("")
+//     .toUpperCase();
+//   return letters || "U";
+// }
 
 function greeting() {
   const hour = new Date().getHours();
@@ -401,7 +401,7 @@ export default function PatientHome() {
   return (
     <div className="min-h-screen">
       {/* Top bar */}
-      <header className="flex items-center gap-4 px-8 py-4 bg-white border-b border-slate-100">
+      {/* <header className="flex items-center gap-4 px-8 py-4 bg-white border-b border-slate-100">
         <div className="flex-1 flex items-center gap-2 bg-slate-50 rounded-lg px-4 py-2.5 max-w-md">
           <FaSearch className="text-slate-400 text-sm" />
           <input
@@ -416,7 +416,7 @@ export default function PatientHome() {
         <div className="w-10 h-10 rounded-full bg-teal-700 text-white flex items-center justify-center text-sm font-semibold">
           {getInitials(name)}
         </div>
-      </header>
+      </header> */}
 
       <main className="px-8 py-7 space-y-6">
         {error && (

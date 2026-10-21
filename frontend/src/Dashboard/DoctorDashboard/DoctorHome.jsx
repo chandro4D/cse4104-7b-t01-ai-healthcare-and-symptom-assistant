@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
-  FaSearch,
-  FaBell,
+  // FaSearch,
+  // FaBell,
   FaCalendarCheck,
   FaClipboardList,
   FaUserInjured,
@@ -437,7 +437,7 @@ export default function DoctorHome() {
   return (
     <div className="min-h-screen">
       {/* Top bar */}
-      <header className="flex items-center gap-4 px-8 py-4 bg-white border-b border-slate-100">
+      {/* <header className="flex items-center gap-4 px-8 py-4 bg-white border-b border-slate-100">
         <div className="flex-1 flex items-center gap-2 bg-slate-50 rounded-lg px-4 py-2.5 max-w-md">
           <FaSearch className="text-slate-400 text-sm" />
           <input
@@ -455,7 +455,7 @@ export default function DoctorHome() {
         <div className="w-10 h-10 rounded-full bg-teal-700 text-white flex items-center justify-center text-sm font-semibold">
           {getInitials(name)}
         </div>
-      </header>
+      </header> */}
 
       <main className="px-8 py-7 space-y-6">
         {error && (

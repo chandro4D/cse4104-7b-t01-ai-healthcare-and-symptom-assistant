@@ -1,8 +1,37 @@
 const mongoose = require("mongoose");
 
+const AVAILABILITY_VALUES = ["Available Today", "Available Tomorrow", "Busy"];
+
+const STATUS_VALUES = ["Available", "Busy", "Offline"];
+
+const SLOT_LENGTHS = [10, 15, 20, 30, 45, 60];
+
+const weeklyDaySchema = new mongoose.Schema(
+  {
+    day: {
+      type: Number,
+      required: true,
+      min: 0,
+      max: 6,
+    },
+    enabled: {
+      type: Boolean,
+      default: false,
+    },
+    start: {
+      type: String,
+      default: "09:00",
+    },
+    end: {
+      type: String,
+      default: "17:00",
+    },
+  },
+  { _id: false },
+);
+
 const doctorSchema = new mongoose.Schema(
   {
-    // User account linked to this doctor profile.
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -52,12 +81,23 @@ const doctorSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      default: "Not set",
     },
 
+    // Patient-facing availability label.
     availability: {
       type: String,
-      enum: ["Available Today", "Available Tomorrow", "Busy"],
+      enum: AVAILABILITY_VALUES,
       default: "Available Today",
+      trim: true,
+    },
+
+    // Doctor's current operational status.
+    status: {
+      type: String,
+      enum: STATUS_VALUES,
+      default: "Available",
+      trim: true,
     },
 
     image: {
@@ -68,6 +108,7 @@ const doctorSchema = new mongoose.Schema(
     bio: {
       type: String,
       default: "",
+      maxlength: 1000,
     },
 
     consultationFee: {
@@ -76,7 +117,6 @@ const doctorSchema = new mongoose.Schema(
       min: 0,
     },
 
-    // Verification and access control.
     isVerified: {
       type: Boolean,
       default: false,
@@ -116,33 +156,23 @@ const doctorSchema = new mongoose.Schema(
       default: ["In-person"],
     },
 
+    // Weekly booking schedule; never store this in availability.
     schedule: {
       slotMinutes: {
         type: Number,
+        enum: SLOT_LENGTHS,
         default: 30,
       },
-      weekly: [
-        {
-          _id: false,
-          day: {
-            type: Number,
-            min: 0,
-            max: 6,
-          },
-          enabled: {
-            type: Boolean,
-            default: false,
-          },
-          start: {
-            type: String,
-            default: "09:00",
-          },
-          end: {
-            type: String,
-            default: "17:00",
-          },
-        },
-      ],
+      weekly: {
+        type: [weeklyDaySchema],
+        default: () =>
+          Array.from({ length: 7 }, (_, day) => ({
+            day,
+            enabled: day >= 1 && day <= 5,
+            start: "09:00",
+            end: "17:00",
+          })),
+      },
     },
 
     daysOff: {
@@ -172,3 +202,6 @@ doctorSchema.index(
 );
 
 module.exports = mongoose.model("Doctor", doctorSchema);
+module.exports.AVAILABILITY_VALUES = AVAILABILITY_VALUES;
+module.exports.STATUS_VALUES = STATUS_VALUES;
+module.exports.SLOT_LENGTHS = SLOT_LENGTHS;

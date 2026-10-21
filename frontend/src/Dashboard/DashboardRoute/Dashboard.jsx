@@ -1,17 +1,16 @@
 import { NavLink, Outlet } from "react-router-dom";
 import {
   FaHome,
-  FaSearch,
+  // FaSearch,
   FaCalendarAlt,
   FaHeart,
-  FaFileMedical,
-  FaPrescriptionBottleAlt,
+  // FaFileMedical,
+  // FaPrescriptionBottleAlt,
   FaUser,
-  FaCog,
+  // FaCog,
   FaUsers,
   FaCartPlus,
   FaList,
-
   FaEnvelope,
   FaUserMd,
 } from "react-icons/fa";
@@ -80,7 +79,10 @@ function Dashboard() {
                 <SidebarLink to="/dashboard/userManagement" icon={<FaList />}>
                   User Management
                 </SidebarLink>
-                <SidebarLink to="/dashboard/doctorVerification" icon={<FaUsers />}>
+                <SidebarLink
+                  to="/dashboard/doctorVerification"
+                  icon={<FaUsers />}
+                >
                   Doctors Management
                 </SidebarLink>
                 <SidebarLink
@@ -89,14 +91,13 @@ function Dashboard() {
                 >
                   Appointment Overview
                 </SidebarLink>
-                <SidebarLink
+                {/* <SidebarLink
                   to="/dashboard/auditAndSecurity"
                   icon={<MdOutlineManageAccounts />}
                 >
                   Audit Logs & Security
                 </SidebarLink>
-                
-                
+
                 <SidebarLink
                   to="/dashboard/notifications"
                   icon={<FaEnvelope />}
@@ -108,7 +109,17 @@ function Dashboard() {
                   icon={<MdOutlineManageAccounts />}
                 >
                   Settings
+                </SidebarLink> */}
+                <SectionLabel>General</SectionLabel>
+                <SidebarLink to="/" icon={<FaHome />}>
+                  Home
                 </SidebarLink>
+                <SidebarLink to="/doctors" icon={<FaUserMd />}>
+                  Doctors
+                </SidebarLink>
+                {/* <SidebarLink to="/contact" icon={<FaEnvelope />}>
+                  Contact
+                </SidebarLink> */}
               </>
             )}
 
@@ -130,17 +141,33 @@ function Dashboard() {
                 >
                   Patient Visit Requests
                 </SidebarLink>
-                
-                <SidebarLink to="/dashboard/patientRecordsDetails" icon={<FaCartPlus />}>
-                  Patient Details 
+
+                <SidebarLink
+                  to="/dashboard/patientRecordsDetails"
+                  icon={<FaCartPlus />}
+                >
+                  Patient Details
                 </SidebarLink>
-                <SidebarLink to="/dashboard/doctorProfileAndAvailability" icon={<FaUser />}>
+                <SidebarLink
+                  to="/dashboard/doctorProfileAndAvailability"
+                  icon={<FaUser />}
+                >
                   Profile & Availability
                 </SidebarLink>
-                
-                <SidebarLink to="/dashboard/settings" icon={<FaUser />}>
-                  Profile
+                <SectionLabel>General</SectionLabel>
+                <SidebarLink to="/" icon={<FaHome />}>
+                  Home
                 </SidebarLink>
+                <SidebarLink to="/doctors" icon={<FaUserMd />}>
+                  Doctors
+                </SidebarLink>
+                {/* <SidebarLink to="/contact" icon={<FaEnvelope />}>
+                  Contact
+                </SidebarLink> */}
+
+                {/* <SidebarLink to="/dashboard/settings" icon={<FaUser />}>
+                  Profile
+                </SidebarLink> */}
               </>
             )}
 
@@ -150,9 +177,9 @@ function Dashboard() {
                 <SidebarLink to="/dashboard/patientHome" icon={<FaHome />}>
                   Dashboard
                 </SidebarLink>
-                <SidebarLink to="/dashboard/findDoctor" icon={<FaSearch />}>
+                {/* <SidebarLink to="/dashboard/findDoctor" icon={<FaSearch />}>
                   Find a Doctor
-                </SidebarLink>
+                </SidebarLink> */}
                 <SidebarLink
                   to="/dashboard/PatientAppointments"
                   icon={<FaCalendarAlt />}
@@ -162,7 +189,18 @@ function Dashboard() {
                 <SidebarLink to="/dashboard/symptomChecker" icon={<FaHeart />}>
                   AI Symptom Checker
                 </SidebarLink>
-                <SidebarLink to="/dashboard/records" icon={<FaFileMedical />}>
+                <SectionLabel>General</SectionLabel>
+                <SidebarLink to="/" icon={<FaHome />}>
+                  Home
+                </SidebarLink>
+                <SidebarLink to="/doctors" icon={<FaUserMd />}>
+                  Doctors
+                </SidebarLink>
+                {/* <SidebarLink to="/contact" icon={<FaEnvelope />}>
+                  Contact
+                </SidebarLink> */}
+
+                {/* <SidebarLink to="/dashboard/records" icon={<FaFileMedical />}>
                   Health Records
                 </SidebarLink>
                 <SidebarLink
@@ -170,15 +208,15 @@ function Dashboard() {
                   icon={<FaPrescriptionBottleAlt />}
                 >
                   Prescriptions
-                </SidebarLink>
+                </SidebarLink> */}
 
-                <SectionLabel>Account</SectionLabel>
+                {/* <SectionLabel>Account</SectionLabel>
                 <SidebarLink to="/dashboard/profile" icon={<FaUser />}>
                   Profile
                 </SidebarLink>
                 <SidebarLink to="/dashboard/settings" icon={<FaCog />}>
                   Settings
-                </SidebarLink>
+                </SidebarLink> */}
               </>
             )}
 
@@ -190,7 +228,7 @@ function Dashboard() {
           </ul>
         </nav>
 
-        <div className="px-3 pb-4 pt-2 border-t border-white/5 mt-2">
+        {/* <div className="px-3 pb-4 pt-2 border-t border-white/5 mt-2">
           <ul className="space-y-1">
             <SidebarLink to="/" icon={<FaHome />}>
               Home
@@ -202,7 +240,7 @@ function Dashboard() {
               Contact
             </SidebarLink>
           </ul>
-        </div>
+        </div> */}
       </aside>
 
       {/* Main content area */}
