@@ -105,7 +105,12 @@ const slotCount = (day, slot) =>
     : 0;
 
 const inputClass =
-  "mt-1.5 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none bg-white transition focus:border-teal-600 focus:ring-2 focus:ring-teal-600/15 disabled:bg-slate-50 disabled:text-slate-500";
+  "mt-1.5 w-full border border-slate-200 rounded-lg px-3 py-2.5 sm:py-2 text-sm text-slate-900 outline-none bg-white transition focus:border-teal-600 focus:ring-2 focus:ring-teal-600/15 disabled:bg-slate-50 disabled:text-slate-500";
+
+const timeInputClass = (invalid) =>
+  `border rounded-lg px-3 py-2 sm:py-1.5 text-sm outline-none focus:border-teal-600 w-full min-w-0 ${
+    invalid ? "border-rose-300" : "border-slate-200"
+  }`;
 
 const PENDING_LABELS = {
   specialty: "specialty",
@@ -121,10 +126,10 @@ function Card({ id, title, subtitle, aside, children }) {
   return (
     <section
       id={id}
-      className="bg-white rounded-2xl border border-slate-200/80 shadow-sm scroll-mt-24"
+      className="bg-white rounded-xl border border-slate-100 scroll-mt-32 lg:scroll-mt-6"
     >
-      <header className="flex flex-wrap items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-slate-100">
-        <div>
+      <header className="flex flex-wrap items-start justify-between gap-3 px-4 sm:px-6 pt-5 pb-4 border-b border-slate-100">
+        <div className="min-w-0">
           <h2 className="text-base font-semibold text-slate-900">{title}</h2>
 
           {subtitle && (
@@ -135,7 +140,7 @@ function Card({ id, title, subtitle, aside, children }) {
         {aside}
       </header>
 
-      <div className="p-6 space-y-5">{children}</div>
+      <div className="p-4 sm:p-6 space-y-5">{children}</div>
     </section>
   );
 }
@@ -166,14 +171,14 @@ function Banner({ tone, children, onDismiss }) {
       role={tone === "error" ? "alert" : "status"}
       className={`flex items-start justify-between gap-4 rounded-xl border px-4 py-3 text-sm ${tones[tone]}`}
     >
-      <div>{children}</div>
+      <div className="min-w-0">{children}</div>
 
       {onDismiss && (
         <button
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="mt-0.5 opacity-60 hover:opacity-100"
+          className="mt-0.5 opacity-60 hover:opacity-100 shrink-0"
         >
           <FaTimes />
         </button>
@@ -184,8 +189,8 @@ function Banner({ tone, children, onDismiss }) {
 
 function Stat({ icon, value, label }) {
   return (
-    <div className="flex-1 text-center px-2 py-3">
-      <div className="text-lg font-semibold text-slate-900 flex items-center justify-center gap-1.5">
+    <div className="flex-1 text-center px-2 py-3 min-w-0">
+      <div className="text-lg font-semibold text-slate-900 flex items-center justify-center gap-1.5 truncate">
         {icon}
         {value}
       </div>
@@ -213,6 +218,71 @@ function Toggle({ checked, onChange, label }) {
         }`}
       />
     </button>
+  );
+}
+
+// Ring showing how much of the profile is filled in.
+function CompletenessRing({ percent }) {
+  const R = 22;
+  const C = 2 * Math.PI * R;
+  return (
+    <svg
+      viewBox="0 0 56 56"
+      className="w-14 h-14 shrink-0"
+      role="img"
+      aria-label={`Profile ${percent}% complete`}
+    >
+      <circle
+        cx="28"
+        cy="28"
+        r={R}
+        fill="none"
+        stroke="#f1f5f9"
+        strokeWidth="6"
+      />
+      <circle
+        cx="28"
+        cy="28"
+        r={R}
+        fill="none"
+        stroke="#0f766e"
+        strokeWidth="6"
+        strokeLinecap="round"
+        strokeDasharray={`${(percent / 100) * C} ${C}`}
+        transform="rotate(-90 28 28)"
+      />
+      <text
+        x="28"
+        y="32"
+        textAnchor="middle"
+        fontSize="13"
+        fontWeight="700"
+        fill="#0f172a"
+      >
+        {percent}%
+      </text>
+    </svg>
+  );
+}
+
+// A 24-hour strip with the working window filled in.
+function HoursBar({ start, end }) {
+  const s = Math.max(0, Math.min(1440, toMinutes(start)));
+  const e = Math.max(0, Math.min(1440, toMinutes(end)));
+  if (e <= s) return null;
+  return (
+    <div
+      className="relative h-1.5 w-full rounded-full bg-slate-100"
+      aria-hidden="true"
+    >
+      <div
+        className="absolute top-0 h-full rounded-full bg-teal-600/80"
+        style={{
+          left: `${(s / 1440) * 100}%`,
+          width: `${((e - s) / 1440) * 100}%`,
+        }}
+      />
+    </div>
   );
 }
 
@@ -456,6 +526,27 @@ export default function DoctorProfile() {
       ),
     [form.weekly, form.slotMinutes],
   );
+
+  // Profile completeness (display only).
+  const completeness = useMemo(() => {
+    const checks = [
+      ["name", Boolean(form.name.trim())],
+      ["phone", Boolean(form.phone.trim())],
+      ["photo", Boolean(form.image.trim())],
+      ["bio", Boolean(form.bio.trim())],
+      ["hospital", Boolean(form.hospital.trim())],
+      ["experience", form.experience !== ""],
+      ["fee", form.consultationFee !== ""],
+      ["specialty", Boolean(form.specialty.trim())],
+      ["qualifications", Boolean(String(form.qualifications).trim())],
+      ["license", Boolean(form.licenseNumber.trim())],
+    ];
+    const done = checks.filter(([, ok]) => ok).length;
+    return {
+      percent: Math.round((done / checks.length) * 100),
+      missing: checks.filter(([, ok]) => !ok).map(([key]) => key),
+    };
+  }, [form]);
 
   // ---------------------------------------------------------------
   // Validate form.
@@ -725,13 +816,13 @@ export default function DoctorProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen px-8 py-7 max-w-6xl animate-pulse space-y-4">
-        <div className="h-8 w-64 bg-slate-200 rounded" />
-        <div className="h-4 w-96 bg-slate-100 rounded" />
+      <div className="min-h-screen px-4 sm:px-6 lg:px-8 py-7 max-w-6xl animate-pulse space-y-4">
+        <div className="h-8 w-64 max-w-full bg-slate-200 rounded" />
+        <div className="h-4 w-96 max-w-full bg-slate-100 rounded" />
 
         <div className="grid lg:grid-cols-[300px_1fr] gap-6 pt-4">
-          <div className="h-80 bg-slate-100 rounded-2xl" />
-          <div className="h-[28rem] bg-slate-100 rounded-2xl" />
+          <div className="h-80 bg-slate-100 rounded-xl" />
+          <div className="h-[28rem] bg-slate-100 rounded-xl" />
         </div>
       </div>
     );
@@ -752,11 +843,11 @@ export default function DoctorProfile() {
   // ---------------------------------------------------------------
 
   return (
-    <div className="min-h-screen bg-slate-50/60 pb-28">
-      <main className="px-4 sm:px-8 py-7 max-w-6xl space-y-6">
+    <div className="min-h-screen pb-28">
+      <main className="px-4 sm:px-6 lg:pl-28 py-5 sm:py-7 max-w-6xl space-y-5 sm:space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
             Profile &amp; availability
           </h1>
 
@@ -800,10 +891,28 @@ export default function DoctorProfile() {
           </Banner>
         )}
 
-        <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-6 items-start">
+        {/* Section jump bar (phones and tablets) */}
+        <nav
+          aria-label="Page sections"
+          className="lg:hidden sticky top-16 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-[#f6f5f1]/95 backdrop-blur overflow-x-auto"
+        >
+          <div className="inline-flex gap-2 min-w-max">
+            {SECTIONS.map(([id, label]) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                className="px-3.5 py-1.5 rounded-full text-xs font-medium border border-slate-200 bg-white text-slate-600 hover:border-teal-600 hover:text-teal-800 whitespace-nowrap"
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+        </nav>
+
+        <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-5 sm:gap-6 items-start">
           {/* Sidebar */}
           <aside className="lg:sticky lg:top-6 space-y-4">
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
               <div className="h-16 bg-gradient-to-r from-teal-700 to-teal-600" />
 
               <div className="px-6 pb-6 -mt-10 text-center">
@@ -822,7 +931,7 @@ export default function DoctorProfile() {
                   </div>
                 )}
 
-                <h2 className="mt-3 font-semibold text-slate-900 leading-tight">
+                <h2 className="mt-3 font-semibold text-slate-900 leading-tight break-words">
                   {form.name || "Your name"}
                 </h2>
 
@@ -880,6 +989,27 @@ export default function DoctorProfile() {
                 />
               </div>
 
+              {/* Profile completeness */}
+              <div className="px-6 py-4 border-t border-slate-100 flex items-center gap-4">
+                <CompletenessRing percent={completeness.percent} />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {completeness.percent === 100
+                      ? "Profile complete"
+                      : "Profile completeness"}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {completeness.percent === 100
+                      ? "Patients see a full profile."
+                      : `Still to add: ${completeness.missing
+                          .slice(0, 3)
+                          .join(", ")}${
+                          completeness.missing.length > 3 ? "…" : ""
+                        }`}
+                  </p>
+                </div>
+              </div>
+
               {/* Patient-facing availability */}
               <div className="px-6 py-4 border-t border-slate-100">
                 <label
@@ -898,7 +1028,7 @@ export default function DoctorProfile() {
                     id="p-status"
                     value={form.status}
                     onChange={(event) => set("status", event.target.value)}
-                    className="w-full border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-sm outline-none bg-white focus:border-teal-600 focus:ring-2 focus:ring-teal-600/15"
+                    className="w-full border border-slate-200 rounded-lg pl-8 pr-3 py-2.5 sm:py-2 text-sm outline-none bg-white focus:border-teal-600 focus:ring-2 focus:ring-teal-600/15"
                   >
                     {STATUSES.map((item) => (
                       <option key={item.value} value={item.value}>
@@ -916,7 +1046,7 @@ export default function DoctorProfile() {
 
             <nav
               aria-label="Page sections"
-              className="hidden lg:block bg-white rounded-2xl border border-slate-200/80 shadow-sm p-2"
+              className="hidden lg:block bg-white rounded-xl border border-slate-100 p-2"
             >
               {SECTIONS.map(([id, label]) => (
                 <a
@@ -931,7 +1061,7 @@ export default function DoctorProfile() {
           </aside>
 
           {/* Main content */}
-          <div className="space-y-6 min-w-0">
+          <div className="space-y-5 sm:space-y-6 min-w-0">
             {/* Personal details */}
             <Card
               id="personal"
@@ -1146,8 +1276,8 @@ export default function DoctorProfile() {
                 </span>
               }
             >
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <Field label="Slot length" htmlFor="p-slot" className="w-48">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
+                <Field label="Slot length" htmlFor="p-slot" className="sm:w-48">
                   <select
                     id="p-slot"
                     value={form.slotMinutes}
@@ -1168,7 +1298,7 @@ export default function DoctorProfile() {
                   <button
                     type="button"
                     onClick={() => applyToAll(firstWorking)}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-teal-800 hover:bg-teal-50 border border-teal-200 px-3.5 py-2 rounded-lg"
+                    className="inline-flex items-center justify-center gap-2 text-sm font-medium text-teal-800 hover:bg-teal-50 border border-teal-200 px-3.5 py-2 rounded-lg"
                   >
                     <FaRegCopy className="text-xs" />
                     Use {DAYS[firstWorking.day]}&apos;s hours for all days
@@ -1184,78 +1314,99 @@ export default function DoctorProfile() {
                   return (
                     <div
                       key={day.day}
-                      className={`px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2 ${
+                      className={`px-4 py-3 space-y-2.5 ${
                         day.enabled ? "bg-white" : "bg-slate-50/70"
                       }`}
                     >
-                      <div className="flex items-center gap-3 w-44">
-                        <Toggle
-                          checked={day.enabled}
-                          onChange={(value) =>
-                            setDay(day.day, { enabled: value })
-                          }
-                          label={`${DAYS[day.day]} available`}
-                        />
-
-                        <span
-                          className={`text-sm font-medium ${
-                            day.enabled ? "text-slate-900" : "text-slate-400"
-                          }`}
-                        >
-                          {DAYS[day.day]}
-                        </span>
-                      </div>
-
-                      {day.enabled ? (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="time"
-                              aria-label={`${DAYS[day.day]} start time`}
-                              value={day.start}
-                              onChange={(event) =>
-                                setDay(day.day, {
-                                  start: event.target.value,
-                                })
-                              }
-                              className={`border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-teal-600 ${
-                                invalid ? "border-rose-300" : "border-slate-200"
-                              }`}
-                            />
-
-                            <span className="text-sm text-slate-400">to</span>
-
-                            <input
-                              type="time"
-                              aria-label={`${DAYS[day.day]} end time`}
-                              value={day.end}
-                              onChange={(event) =>
-                                setDay(day.day, {
-                                  end: event.target.value,
-                                })
-                              }
-                              className={`border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-teal-600 ${
-                                invalid ? "border-rose-300" : "border-slate-200"
-                              }`}
-                            />
-                          </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <div className="flex items-center gap-3 sm:w-44">
+                          <Toggle
+                            checked={day.enabled}
+                            onChange={(value) =>
+                              setDay(day.day, { enabled: value })
+                            }
+                            label={`${DAYS[day.day]} available`}
+                          />
 
                           <span
-                            className={`text-xs ml-auto ${
-                              invalid ? "text-rose-600" : "text-slate-400"
+                            className={`text-sm font-medium ${
+                              day.enabled ? "text-slate-900" : "text-slate-400"
                             }`}
                           >
-                            {invalid
-                              ? "End must be after start"
-                              : `${count} slots`}
+                            {DAYS[day.day]}
                           </span>
-                        </>
-                      ) : (
-                        <span className="text-sm text-slate-400">Day off</span>
+
+                          {!day.enabled && (
+                            <span className="text-sm text-slate-400 sm:hidden ml-auto">
+                              Day off
+                            </span>
+                          )}
+                        </div>
+
+                        {day.enabled ? (
+                          <>
+                            <div className="flex items-center gap-2 w-full sm:w-auto order-last sm:order-none">
+                              <input
+                                type="time"
+                                aria-label={`${DAYS[day.day]} start time`}
+                                value={day.start}
+                                onChange={(event) =>
+                                  setDay(day.day, {
+                                    start: event.target.value,
+                                  })
+                                }
+                                className={timeInputClass(invalid)}
+                              />
+
+                              <span className="text-sm text-slate-400">to</span>
+
+                              <input
+                                type="time"
+                                aria-label={`${DAYS[day.day]} end time`}
+                                value={day.end}
+                                onChange={(event) =>
+                                  setDay(day.day, {
+                                    end: event.target.value,
+                                  })
+                                }
+                                className={timeInputClass(invalid)}
+                              />
+                            </div>
+
+                            <span
+                              className={`text-xs ml-auto ${
+                                invalid ? "text-rose-600" : "text-slate-400"
+                              }`}
+                            >
+                              {invalid
+                                ? "End must be after start"
+                                : `${count} slots`}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-sm text-slate-400 hidden sm:inline">
+                            Day off
+                          </span>
+                        )}
+                      </div>
+
+                      {day.enabled && !invalid && (
+                        <HoursBar start={day.start} end={day.end} />
                       )}
                     </div>
                   );
                 })}
+              </div>
+
+              <div
+                className="flex justify-between text-[10px] text-slate-400 -mt-2 px-1"
+                aria-hidden="true"
+              >
+                <span>12 AM</span>
+                <span>6 AM</span>
+                <span>12 PM</span>
+                <span>6 PM</span>
+                <span>12 AM</span>
               </div>
             </Card>
 
@@ -1265,8 +1416,8 @@ export default function DoctorProfile() {
               title="Days off"
               subtitle="Holidays or leave. No slots are offered on these dates."
             >
-              <div className="flex flex-wrap items-end gap-3">
-                <Field label="Date" htmlFor="p-off" className="w-52">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <Field label="Date" htmlFor="p-off" className="sm:w-52">
                   <input
                     id="p-off"
                     type="date"
@@ -1281,7 +1432,7 @@ export default function DoctorProfile() {
                   type="button"
                   onClick={addDayOff}
                   disabled={!newOff}
-                  className="flex items-center gap-1.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium px-4 py-2 rounded-lg disabled:opacity-50"
+                  className="flex items-center justify-center gap-1.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-medium px-4 py-2.5 sm:py-2 rounded-lg disabled:opacity-50"
                 >
                   <FaPlus className="text-xs" />
                   Add day off
@@ -1290,7 +1441,7 @@ export default function DoctorProfile() {
 
               {form.daysOff.length === 0 ? (
                 <div className="flex items-center gap-3 text-sm text-slate-400 border border-dashed border-slate-200 rounded-xl px-4 py-5">
-                  <FaRegCalendarAlt />
+                  <FaRegCalendarAlt className="shrink-0" />
                   No days off added. Pick a date above to block it.
                 </div>
               ) : (
@@ -1384,12 +1535,12 @@ export default function DoctorProfile() {
                 </Field>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex sm:justify-end">
                 <button
                   type="button"
                   onClick={changePassword}
                   disabled={pwSaving}
-                  className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                 >
                   {pwSaving ? "Updating…" : "Update password"}
                 </button>
@@ -1399,15 +1550,15 @@ export default function DoctorProfile() {
         </div>
       </main>
 
-      {/* Sticky save bar */}
+      {/* Sticky save bar (starts after the 260px sidebar on large screens) */}
       <div
-        className={`fixed bottom-0 inset-x-0 z-30 transition-transform duration-200 ${
+        className={`fixed bottom-0 inset-x-0 lg:left-[260px] z-30 transition-transform duration-200 ${
           dirty ? "translate-y-0" : "translate-y-full"
         }`}
         aria-hidden={!dirty}
       >
         <div className="bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]">
-          <div className="max-w-6xl px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
+          <div className="max-w-6xl px-4 sm:px-6 lg:px-8 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <p className="text-sm text-slate-600">
               <span className="inline-block w-2 h-2 rounded-full bg-amber-500 mr-2" />
               You have unsaved changes.
@@ -1419,7 +1570,7 @@ export default function DoctorProfile() {
                 onClick={() => setForm(JSON.parse(initial))}
                 disabled={saving || !dirty}
                 tabIndex={dirty ? 0 : -1}
-                className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                className="flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
               >
                 Discard
               </button>
@@ -1429,7 +1580,7 @@ export default function DoctorProfile() {
                 onClick={save}
                 disabled={saving || !dirty}
                 tabIndex={dirty ? 0 : -1}
-                className="bg-teal-700 hover:bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg disabled:opacity-50 transition-colors"
+                className="flex-1 sm:flex-none bg-teal-700 hover:bg-teal-800 text-white text-sm font-medium px-5 py-2 rounded-lg disabled:opacity-50 transition-colors"
               >
                 {saving ? "Saving…" : "Save changes"}
               </button>

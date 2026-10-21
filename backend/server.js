@@ -19,7 +19,7 @@ const adminRoutes = require("./routes/admin.routes");
 const aiRoutes = require("./routes/ai.routes");
 const notificationRoutes = require("./routes/notification.routes");
 const appointmentRoutes = require("./routes/appointment_routes");
-const dashboardRoutes = require("./routes/dashboard.routes");
+const dashboardRoutes = require("./routes/Dashboard.routes");
 const doctorPanelRoutes = require("./routes/doctorPanel.routes");
 
 // Error handlers
