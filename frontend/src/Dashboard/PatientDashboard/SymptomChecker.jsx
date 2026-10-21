@@ -8,6 +8,9 @@ import {
   Sparkles,
   Plus,
   Trash2,
+  MessageCircle,
+  Activity,
+  History,
 } from "lucide-react";
 import axios from "axios";
 import MedicalResponse from "./MedicalResponse";
@@ -34,6 +37,18 @@ const SEVERITY_ADVICE = {
   Moderate: "Consider seeing a doctor within a day or two.",
   High: "Please seek medical care soon, ideally today.",
 };
+
+// Panel height: fills the screen under the page header.
+// Below xl the three panels are shown one at a time (see the tab bar),
+// from xl up all three sit side by side exactly as before.
+const PANEL_HEIGHT =
+  "h-[calc(100dvh-14rem)] lg:h-[calc(100dvh-12rem)] xl:h-[calc(100vh-9rem)] min-h-[420px] xl:min-h-[480px]";
+
+const PANELS = [
+  { key: "chat", label: "Chat", Icon: MessageCircle },
+  { key: "analysis", label: "Assessment", Icon: Activity },
+  { key: "history", label: "History", Icon: History },
+];
 
 function severityColor(level) {
   if (level === "Low") return "text-emerald-600";
@@ -101,6 +116,7 @@ export default function SymptomChecker() {
   const [listLoading, setListLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(false);
   const [error, setError] = useState("");
+  const [panel, setPanel] = useState("chat"); // used below xl only
   const scrollRef = useRef(null);
 
   const initials = getInitials();
@@ -111,7 +127,7 @@ export default function SymptomChecker() {
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages, isTyping]);
+  }, [messages, isTyping, panel]);
 
   // Load this user's consultation history
   const loadConversations = useCallback(async () => {
@@ -136,13 +152,19 @@ export default function SymptomChecker() {
     setAnalysis(null);
     setInput("");
     setError("");
+    setPanel("chat");
   };
 
   const openConversation = async (id) => {
-    if (isTyping || chatLoading || id === activeId) return;
+    if (isTyping || chatLoading || id === activeId) {
+      // Already open: just take the person back to the chat on small screens.
+      if (id === activeId) setPanel("chat");
+      return;
+    }
 
     setChatLoading(true);
     setError("");
+    setPanel("chat");
 
     try {
       const { data } = await axios.get(
@@ -218,23 +240,27 @@ export default function SymptomChecker() {
 
   return (
     <div className="flex h-full min-h-screen w-full bg-[#F5F2EA] font-sans text-stone-800">
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
-        <header className="flex items-center justify-between border-b border-stone-200 bg-white px-8 py-4">
-          <div>
+        <header className="flex items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-3 sm:px-6 sm:py-4 xl:px-8">
+          <div className="min-w-0">
             <p className="text-xs font-semibold tracking-widest text-emerald-700">
               AI MODULE
             </p>
-            <h1 className="text-xl font-bold text-stone-900">
+            <h1 className="truncate text-lg font-bold text-stone-900 sm:text-xl">
               Symptom Checker
             </h1>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-500">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <span className="flex items-center gap-1.5 rounded-full bg-stone-100 px-2.5 py-1.5 text-[10px] font-medium text-stone-500 sm:px-3 sm:text-xs">
               <ShieldAlert className="h-3.5 w-3.5" />
-              NOT A DIAGNOSIS
+              <span className="hidden sm:inline">NOT A DIAGNOSIS</span>
+              <span className="sm:hidden">NOT A DIAGNOSIS</span>
             </span>
-            <button className="grid h-9 w-9 place-items-center rounded-full border border-stone-200 text-stone-500 hover:bg-stone-50">
+            <button
+              aria-label="Notifications"
+              className="grid h-9 w-9 place-items-center rounded-full border border-stone-200 text-stone-500 hover:bg-stone-50"
+            >
               <Bell className="h-4 w-4" />
             </button>
             <div className="grid h-9 w-9 place-items-center rounded-full bg-emerald-700 text-sm font-semibold text-white">
@@ -243,14 +269,51 @@ export default function SymptomChecker() {
           </div>
         </header>
 
+        {/* Panel switcher (below xl only) */}
+        <div className="px-3 pt-3 sm:px-4 xl:hidden">
+          <div
+            role="tablist"
+            aria-label="Symptom checker sections"
+            className="grid grid-cols-3 gap-1 rounded-full border border-stone-200 bg-white p-1 shadow-sm"
+          >
+            {PANELS.map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                role="tab"
+                aria-selected={panel === key}
+                onClick={() => setPanel(key)}
+                className={`relative flex items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold transition sm:text-sm ${
+                  panel === key
+                    ? "bg-emerald-700 text-white"
+                    : "text-stone-500 hover:bg-stone-50"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+                {key === "analysis" && analysis?.severity && (
+                  <span
+                    className={`h-2 w-2 rounded-full ring-2 ${
+                      panel === key ? "ring-emerald-700" : "ring-white"
+                    } ${severityDot(analysis.severity)}`}
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Body */}
-        <div className="flex flex-1 gap-6 overflow-hidden p-6">
+        <div className="flex flex-1 gap-4 p-3 sm:p-4 xl:gap-6 xl:overflow-hidden xl:p-6">
           {/* History sidebar */}
-          <aside className="flex h-[calc(100vh-9rem)] min-h-[480px] w-64 shrink-0 flex-col rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+          <aside
+            className={`${
+              panel === "history" ? "flex" : "hidden"
+            } xl:flex ${PANEL_HEIGHT} w-full shrink-0 flex-col rounded-2xl border border-stone-200 bg-white p-4 shadow-sm xl:w-64`}
+          >
             <button
               onClick={newChat}
               disabled={isTyping}
-              className="mb-3 flex items-center justify-center gap-2 rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-50"
+              className="mb-3 flex items-center justify-center gap-2 rounded-full bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-50 xl:py-2"
             >
               <Plus className="h-4 w-4" />
               New consultation
@@ -276,7 +339,7 @@ export default function SymptomChecker() {
                   <button
                     onClick={() => openConversation(c._id)}
                     disabled={isTyping || chatLoading}
-                    className={`w-full rounded-lg px-3 py-2 pr-9 text-left transition hover:bg-stone-50 disabled:opacity-60 ${
+                    className={`w-full rounded-lg px-3 py-2.5 pr-10 text-left transition hover:bg-stone-50 disabled:opacity-60 xl:py-2 xl:pr-9 ${
                       activeId === c._id ? "bg-emerald-50" : ""
                     }`}
                   >
@@ -300,12 +363,13 @@ export default function SymptomChecker() {
                       {formatDate(c.updatedAt)}
                     </p>
                   </button>
+                  {/* Always visible on touch screens, hover-only on xl */}
                   <button
                     aria-label="Delete consultation"
                     onClick={(e) => deleteConversation(e, c._id)}
-                    className="absolute right-2 top-2 rounded p-1 text-stone-400 opacity-0 transition hover:bg-stone-100 hover:text-rose-600 focus:opacity-100 group-hover:opacity-100"
+                    className="absolute right-2 top-2 rounded p-1.5 text-stone-400 transition hover:bg-stone-100 hover:text-rose-600 focus:opacity-100 xl:p-1 xl:opacity-0 xl:group-hover:opacity-100"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-4 w-4 xl:h-3.5 xl:w-3.5" />
                   </button>
                 </div>
               ))}
@@ -313,30 +377,53 @@ export default function SymptomChecker() {
           </aside>
 
           {/* Chat panel */}
-          <div className="flex h-[calc(100vh-9rem)] min-h-[480px] min-w-0 flex-1 flex-col rounded-2xl border border-stone-200 bg-white shadow-sm">
-            <div className="flex items-center gap-3 border-b border-stone-100 px-6 py-4">
-              <div className="grid h-9 w-9 place-items-center rounded-full bg-emerald-700 text-white">
+          <div
+            className={`${
+              panel === "chat" ? "flex" : "hidden"
+            } xl:flex ${PANEL_HEIGHT} min-w-0 flex-1 flex-col rounded-2xl border border-stone-200 bg-white shadow-sm`}
+          >
+            <div className="flex items-center gap-3 border-b border-stone-100 px-4 py-3 sm:px-6 sm:py-4">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-700 text-white">
                 <Sparkles className="h-4 w-4" />
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-stone-900">
                   Symptom Assistant
                 </p>
-                <p className="text-xs text-stone-400">
-                  Powered by Gemini AI · Your consultations are saved to your
-                  account
+                <p className="truncate text-xs text-stone-400">
+                  Powered by Gemini AI
+                  <span className="hidden sm:inline">
+                    {" "}
+                    · Your consultations are saved to your account
+                  </span>
                 </p>
               </div>
+
+              {/* Quick severity link (below xl, once there is an assessment) */}
+              {analysis?.severity && (
+                <button
+                  onClick={() => setPanel("analysis")}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full border border-stone-200 px-2.5 py-1 text-xs font-semibold hover:bg-stone-50 xl:hidden"
+                  aria-label={`Severity ${analysis.severity}. View assessment`}
+                >
+                  <span
+                    className={`h-2 w-2 rounded-full ${severityDot(
+                      analysis.severity,
+                    )}`}
+                  />
+                  <span className={severityColor(analysis.severity)}>
+                    {analysis.severity}
+                  </span>
+                </button>
+              )}
             </div>
 
             <div
               ref={scrollRef}
-              className="flex-1 space-y-4 overflow-y-auto px-6 py-4"
+              className="flex-1 space-y-4 overflow-y-auto px-3 py-4 sm:px-6"
             >
               {chatLoading ? (
-                <p className="text-sm text-stone-400">
-                  Loading consultation…
-                </p>
+                <p className="text-sm text-stone-400">Loading consultation…</p>
               ) : (
                 messages.map((m, i) => (
                   <ChatBubble key={m._id || i} msg={m} initials={initials} />
@@ -346,13 +433,19 @@ export default function SymptomChecker() {
             </div>
 
             {error && (
-              <p className="border-t border-rose-100 bg-rose-50 px-6 py-2 text-xs font-medium text-rose-700">
+              <p
+                role="alert"
+                className="border-t border-rose-100 bg-rose-50 px-4 py-2 text-xs font-medium text-rose-700 sm:px-6"
+              >
                 {error}
               </p>
             )}
 
-            <div className="flex items-center gap-3 border-t border-stone-100 px-6 py-3">
-              <button className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-stone-200 text-stone-500 hover:bg-stone-50">
+            <div className="flex items-center gap-2 border-t border-stone-100 px-3 py-3 sm:gap-3 sm:px-6">
+              <button
+                aria-label="Voice input"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-stone-200 text-stone-500 hover:bg-stone-50"
+              >
                 <Mic className="h-4 w-4" />
               </button>
               <input
@@ -361,9 +454,11 @@ export default function SymptomChecker() {
                 onKeyDown={(e) => e.key === "Enter" && send()}
                 maxLength={2000}
                 placeholder="Describe how you're feeling..."
-                className="flex-1 rounded-full border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                aria-label="Describe your symptoms"
+                className="min-w-0 flex-1 rounded-full border border-stone-200 bg-stone-50 px-4 py-2.5 text-base outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 sm:text-sm"
               />
               <button
+                aria-label="Send message"
                 disabled={isTyping || chatLoading || !input.trim()}
                 onClick={send}
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-700 text-white transition hover:bg-emerald-800 active:scale-95 disabled:opacity-50"
@@ -374,8 +469,14 @@ export default function SymptomChecker() {
           </div>
 
           {/* Right analysis panel (real data from the latest AI answer) */}
-          <div className="flex h-[calc(100vh-9rem)] min-h-[480px] w-80 shrink-0 flex-col gap-5 overflow-y-auto">
-            <SeverityCard level={analysis?.severity} />
+          <div
+            className={`${
+              panel === "analysis" ? "grid md:grid-cols-2" : "hidden"
+            } xl:flex xl:flex-col content-start gap-4 xl:gap-5 ${PANEL_HEIGHT} w-full shrink-0 overflow-y-auto xl:w-80`}
+          >
+            <div className="md:col-span-2 xl:col-span-1">
+              <SeverityCard level={analysis?.severity} />
+            </div>
             <ConditionsCard items={analysis?.conditions || []} />
             <DepartmentsCard items={analysis?.departments || []} />
           </div>
@@ -392,7 +493,7 @@ function ChatBubble({ msg, initials }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className={`flex items-start gap-3 ${isAI ? "" : "flex-row-reverse"}`}
+      className={`flex items-start gap-2 sm:gap-3 ${isAI ? "" : "flex-row-reverse"}`}
     >
       <div
         className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-semibold ${
@@ -401,9 +502,13 @@ function ChatBubble({ msg, initials }) {
       >
         {isAI ? "AI" : initials}
       </div>
-      <div className={`max-w-[80%] ${isAI ? "" : "flex flex-col items-end"}`}>
+      <div
+        className={`min-w-0 max-w-[85%] sm:max-w-[80%] ${
+          isAI ? "" : "flex flex-col items-end"
+        }`}
+      >
         <div
-          className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+          className={`break-words rounded-2xl px-4 py-3 text-sm leading-relaxed ${
             isAI ? "bg-stone-50 text-stone-700" : "bg-emerald-700 text-white"
           }`}
         >
@@ -430,7 +535,7 @@ function TypingBubble() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
-      className="flex items-start gap-3"
+      className="flex items-start gap-2 sm:gap-3"
     >
       <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-700 text-xs font-semibold text-white">
         AI
@@ -555,7 +660,7 @@ function DepartmentsCard({ items }) {
               className="flex items-center justify-between gap-2"
             >
               <span className="text-sm text-stone-700">{d.name}</span>
-              <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+              <span className="shrink-0 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
                 {d.match}% match
               </span>
             </div>

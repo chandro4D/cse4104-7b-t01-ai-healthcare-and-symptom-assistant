@@ -1,20 +1,17 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   FaHome,
-  // FaSearch,
   FaCalendarAlt,
   FaHeart,
-  // FaFileMedical,
-  // FaPrescriptionBottleAlt,
   FaUser,
-  // FaCog,
   FaUsers,
   FaCartPlus,
   FaList,
-  FaEnvelope,
   FaUserMd,
+  FaBars,
+  FaTimes,
 } from "react-icons/fa";
-import { MdOutlineManageAccounts } from "react-icons/md";
 
 function SidebarLink({ to, icon, children }) {
   return (
@@ -44,31 +41,93 @@ function SectionLabel({ children }) {
   );
 }
 
+function Brand() {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-9 h-9 rounded-lg bg-teal-600 flex items-center justify-center text-white font-bold text-sm">
+        AH
+      </div>
+      <div>
+        <p className="text-white font-semibold leading-tight text-[15px]">
+          AI Healthcare
+        </p>
+        <p className="text-[10px] tracking-widest text-slate-400 uppercase">
+          Symptom Assistant
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function readUser() {
+  try {
+    const userString = localStorage.getItem("user");
+    return userString ? JSON.parse(userString) : null;
+  } catch {
+    return null;
+  }
+}
+
 function Dashboard() {
-  const userString = localStorage.getItem("user");
-  const user = userString ? JSON.parse(userString) : null;
+  const user = readUser();
   const role = user?.role;
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+
+  // Close the drawer after navigating.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+  // Close on Escape + lock page scroll while the drawer is open (mobile only).
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+
+    const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [menuOpen]);
 
   return (
     <div className="flex min-h-screen bg-[#f6f5f1]">
-      {/* Sidebar */}
-      <aside className="w-[260px] shrink-0 min-h-screen bg-[#0f211d] flex flex-col">
+      {/* Backdrop (mobile / tablet only) */}
+      <div
+        onClick={() => setMenuOpen(false)}
+        aria-hidden="true"
+        className={`fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-[1px] transition-opacity duration-200 lg:hidden ${
+          menuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      />
+
+      {/* Sidebar: slide-in drawer below lg, fixed column on lg and up */}
+      <aside
+        id="app-sidebar"
+        className={`fixed inset-y-0 left-0 z-50 w-[260px] max-w-[85vw] bg-[#0f211d] flex flex-col transition-transform duration-200 ease-out ${
+          menuOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:self-start lg:shrink-0 lg:max-w-none`}
+      >
         {/* Brand */}
-        <div className="flex items-center gap-3 px-6 py-6">
-          <div className="w-9 h-9 rounded-lg bg-teal-600 flex items-center justify-center text-white font-bold text-sm">
-            AH
-          </div>
-          <div>
-            <p className="text-white font-semibold leading-tight text-[15px]">
-              AI Healthcare
-            </p>
-            <p className="text-[10px] tracking-widest text-slate-400 uppercase">
-              Symptom Assistant
-            </p>
-          </div>
+        <div className="flex items-center justify-between px-6 py-6">
+          <Brand />
+          <button
+            type="button"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Close menu"
+            className="lg:hidden w-9 h-9 rounded-lg text-slate-300 hover:bg-white/10 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
+          >
+            <FaTimes />
+          </button>
         </div>
 
-        <nav className="flex-1 px-3 overflow-y-auto">
+        <nav className="flex-1 px-3 pb-6 overflow-y-auto">
           <ul className="space-y-1">
             {role === "admin" && (
               <>
@@ -91,25 +150,6 @@ function Dashboard() {
                 >
                   Appointment Overview
                 </SidebarLink>
-                {/* <SidebarLink
-                  to="/dashboard/auditAndSecurity"
-                  icon={<MdOutlineManageAccounts />}
-                >
-                  Audit Logs & Security
-                </SidebarLink>
-
-                <SidebarLink
-                  to="/dashboard/notifications"
-                  icon={<FaEnvelope />}
-                >
-                  Notifications
-                </SidebarLink>
-                <SidebarLink
-                  to="/dashboard/settings"
-                  icon={<MdOutlineManageAccounts />}
-                >
-                  Settings
-                </SidebarLink> */}
                 <SectionLabel>General</SectionLabel>
                 <SidebarLink to="/" icon={<FaHome />}>
                   Home
@@ -117,9 +157,6 @@ function Dashboard() {
                 <SidebarLink to="/doctors" icon={<FaUserMd />}>
                   Doctors
                 </SidebarLink>
-                {/* <SidebarLink to="/contact" icon={<FaEnvelope />}>
-                  Contact
-                </SidebarLink> */}
               </>
             )}
 
@@ -141,7 +178,6 @@ function Dashboard() {
                 >
                   Patient Visit Requests
                 </SidebarLink>
-
                 <SidebarLink
                   to="/dashboard/patientRecordsDetails"
                   icon={<FaCartPlus />}
@@ -161,13 +197,6 @@ function Dashboard() {
                 <SidebarLink to="/doctors" icon={<FaUserMd />}>
                   Doctors
                 </SidebarLink>
-                {/* <SidebarLink to="/contact" icon={<FaEnvelope />}>
-                  Contact
-                </SidebarLink> */}
-
-                {/* <SidebarLink to="/dashboard/settings" icon={<FaUser />}>
-                  Profile
-                </SidebarLink> */}
               </>
             )}
 
@@ -177,9 +206,6 @@ function Dashboard() {
                 <SidebarLink to="/dashboard/patientHome" icon={<FaHome />}>
                   Dashboard
                 </SidebarLink>
-                {/* <SidebarLink to="/dashboard/findDoctor" icon={<FaSearch />}>
-                  Find a Doctor
-                </SidebarLink> */}
                 <SidebarLink
                   to="/dashboard/PatientAppointments"
                   icon={<FaCalendarAlt />}
@@ -196,27 +222,6 @@ function Dashboard() {
                 <SidebarLink to="/doctors" icon={<FaUserMd />}>
                   Doctors
                 </SidebarLink>
-                {/* <SidebarLink to="/contact" icon={<FaEnvelope />}>
-                  Contact
-                </SidebarLink> */}
-
-                {/* <SidebarLink to="/dashboard/records" icon={<FaFileMedical />}>
-                  Health Records
-                </SidebarLink>
-                <SidebarLink
-                  to="/dashboard/PatientPrescriptions"
-                  icon={<FaPrescriptionBottleAlt />}
-                >
-                  Prescriptions
-                </SidebarLink> */}
-
-                {/* <SectionLabel>Account</SectionLabel>
-                <SidebarLink to="/dashboard/profile" icon={<FaUser />}>
-                  Profile
-                </SidebarLink>
-                <SidebarLink to="/dashboard/settings" icon={<FaCog />}>
-                  Settings
-                </SidebarLink> */}
               </>
             )}
 
@@ -227,25 +232,28 @@ function Dashboard() {
             )}
           </ul>
         </nav>
-
-        {/* <div className="px-3 pb-4 pt-2 border-t border-white/5 mt-2">
-          <ul className="space-y-1">
-            <SidebarLink to="/" icon={<FaHome />}>
-              Home
-            </SidebarLink>
-            <SidebarLink to="/doctors" icon={<FaUserMd />}>
-              Doctors
-            </SidebarLink>
-            <SidebarLink to="/contact" icon={<FaEnvelope />}>
-              Contact
-            </SidebarLink>
-          </ul>
-        </div> */}
       </aside>
 
       {/* Main content area */}
-      <div className="flex-1 min-w-0">
-        <Outlet />
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Mobile / tablet top bar */}
+        <header className="lg:hidden sticky top-0 z-30 flex items-center gap-3 bg-[#0f211d] px-4 py-3 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={menuOpen}
+            aria-controls="app-sidebar"
+            className="w-10 h-10 rounded-lg text-white hover:bg-white/10 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
+          >
+            <FaBars />
+          </button>
+          <Brand />
+        </header>
+
+        <div className="flex-1 min-w-0">
+          <Outlet />
+        </div>
       </div>
     </div>
   );
