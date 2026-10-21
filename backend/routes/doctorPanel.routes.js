@@ -1,10 +1,3 @@
-/**
- * Doctor panel API  ->  mounted at /api/v1/doctor-panel
- * Covers: Patient Directory, Visit Requests, Patient Records, Notes,
- *         Prescriptions, Doctor Profile, Availability and Slots.
- *
- * ONLY EDIT THE "CONFIG" BLOCK if your project names differ.
- */
 const express = require("express");
 const mongoose = require("mongoose");
 
@@ -620,13 +613,24 @@ router.get(
 );
 
 // The page uses photo / fee / availability; the Doctor model stores image / consultationFee / schedule.
+
 const shapeDoctor = (doc) => {
-  const o = doc.toObject();
+  const o = typeof doc.toObject === "function" ? doc.toObject() : doc;
+
   return {
     ...o,
+
+    // Keep these fields independent.
+    availability: o.availability || "Available Today",
+    status: o.status || "Available",
+    schedule: o.schedule || {
+      slotMinutes: 30,
+      weekly: [],
+    },
+
+    // Backward-compatible aliases used by the frontend.
     photo: o.image || "",
     fee: o.consultationFee ?? 0,
-    availability: o.schedule || null,
   };
 };
 
@@ -639,18 +643,78 @@ router.patch(
   role("doctor"),
   wrap(async (req, res) => {
     const { profile } = await doctorCtx(req);
-    if (!profile) return fail(res, 404, "Doctor profile not found.");
-    const b = req.body;
 
-    // availability validation
-    if (b.availability) {
-      const av = b.availability;
-      if (!SLOT_LENGTHS.includes(Number(av.slotMinutes)))
+    if (!profile) {
+      return fail(res, 404, "Doctor profile not found.");
+    }
+
+    const b = req.body || {};
+
+    const AVAILABILITY_VALUES = [
+      "Available Today",
+      "Available Tomorrow",
+      "Busy",
+    ];
+
+    const STATUS_VALUES = ["Available", "Busy", "Offline"];
+    const SLOT_LENGTHS = [10, 15, 20, 30, 45, 60];
+
+    // Availability label: a string, not a schedule object.
+    if (
+      b.availability !== undefined &&
+      (typeof b.availability !== "string" ||
+        !AVAILABILITY_VALUES.includes(b.availability))
+    ) {
+      return fail(res, 400, "Choose a valid availability.");
+    }
+
+    if (
+      b.status !== undefined &&
+      (typeof b.status !== "string" || !STATUS_VALUES.includes(b.status))
+    ) {
+      return fail(res, 400, "Choose a valid doctor status.");
+    }
+
+    // Validate the weekly schedule independently.
+    if (b.schedule !== undefined) {
+      const schedule = b.schedule;
+
+      if (
+        !schedule ||
+        typeof schedule !== "object" ||
+        !SLOT_LENGTHS.includes(Number(schedule.slotMinutes))
+      ) {
         return fail(res, 400, "Choose a valid slot length.");
-      if (!Array.isArray(av.weekly) || av.weekly.length !== 7)
+      }
+
+      if (!Array.isArray(schedule.weekly) || schedule.weekly.length !== 7) {
         return fail(res, 400, "Schedule must include all 7 days.");
-      for (const w of av.weekly) {
+      }
+
+      const dayNumbers = schedule.weekly.map((w) => Number(w.day));
+
+      if (
+        new Set(dayNumbers).size !== 7 ||
+        dayNumbers.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
+      ) {
+        return fail(
+          res,
+          400,
+          "Schedule must contain each weekday exactly once.",
+        );
+      }
+
+      for (const w of schedule.weekly) {
+        if (typeof w.enabled !== "boolean") {
+          return fail(
+            res,
+            400,
+            "Each schedule day must have an enabled value.",
+          );
+        }
+
         if (!w.enabled) continue;
+
         if (
           !isTime(w.start) ||
           !isTime(w.end) ||
@@ -664,52 +728,237 @@ router.patch(
         }
       }
     }
-    if (b.daysOff && !(Array.isArray(b.daysOff) && b.daysOff.every(isDateKey)))
-      return fail(res, 400, "Days off are not valid.");
-    if (b.fee != null && (Number.isNaN(Number(b.fee)) || Number(b.fee) < 0))
-      return fail(res, 400, "Fee must be a positive number.");
+
     if (
-      b.experience != null &&
-      (Number.isNaN(Number(b.experience)) || Number(b.experience) < 0)
-    )
-      return fail(res, 400, "Experience must be a positive number.");
-
-    // user fields
-    const userUpdate = {};
-    if (typeof b.name === "string" && b.name.trim())
-      userUpdate.name = b.name.trim();
-    if (typeof b.phone === "string") userUpdate.phone = b.phone.trim();
-    if (Object.keys(userUpdate).length)
-      await User.findByIdAndUpdate(req.user._id, userUpdate, {
-        runValidators: true,
-      });
-
-    // low-risk doctor fields -> saved immediately
-    if (typeof b.bio === "string") profile.bio = b.bio.slice(0, 1000);
-    if (typeof b.photo === "string") profile.image = b.photo.trim();
-    if (b.fee != null) profile.consultationFee = Number(b.fee);
-    if (b.experience != null) profile.experience = Number(b.experience);
-    if (Array.isArray(b.visitTypes)) profile.visitTypes = b.visitTypes;
-    if (b.availability) profile.schedule = b.availability;
-    if (b.daysOff) profile.daysOff = [...new Set(b.daysOff)].sort();
-
-    // sensitive fields -> pending admin approval
-    const changes = {};
-    for (const k of SENSITIVE) {
-      if (typeof b[k] === "string" && b[k].trim() !== String(profile[k] ?? ""))
-        changes[k] = b[k].trim();
+      b.daysOff !== undefined &&
+      (!Array.isArray(b.daysOff) || !b.daysOff.every(isDateKey))
+    ) {
+      return fail(res, 400, "Days off are not valid.");
     }
+
+    if (
+      b.fee !== undefined &&
+      (b.fee === "" || !Number.isFinite(Number(b.fee)) || Number(b.fee) < 0)
+    ) {
+      return fail(res, 400, "Fee must be a non-negative number.");
+    }
+
+    if (
+      b.experience !== undefined &&
+      (b.experience === "" ||
+        !Number.isFinite(Number(b.experience)) ||
+        Number(b.experience) < 0)
+    ) {
+      return fail(res, 400, "Experience must be a non-negative number.");
+    }
+
+    if (
+      b.visitTypes !== undefined &&
+      (!Array.isArray(b.visitTypes) ||
+        b.visitTypes.length === 0 ||
+        !b.visitTypes.every((v) =>
+          ["In-person", "Video", "Follow-up", "Check-up"].includes(v),
+        ))
+    ) {
+      return fail(res, 400, "Choose at least one valid visit type.");
+    }
+
+    // Update the linked user account.
+    const userUpdate = {};
+
+    if (typeof b.name === "string" && b.name.trim()) {
+      userUpdate.name = b.name.trim();
+    }
+
+    if (typeof b.phone === "string") {
+      userUpdate.phone = b.phone.trim();
+    }
+
+    if (Object.keys(userUpdate).length > 0) {
+      const updatedUser = await User.findByIdAndUpdate(
+        req.user._id,
+        { $set: userUpdate },
+        {
+          new: true,
+          runValidators: true,
+        },
+      );
+
+      if (!updatedUser) {
+        return fail(res, 404, "User account not found.");
+      }
+
+      // Keep the doctor's public profile synchronized.
+      if (userUpdate.name) profile.name = userUpdate.name;
+      if (userUpdate.phone !== undefined) {
+        profile.phone = userUpdate.phone;
+      }
+    }
+
+    // Update ordinary doctor profile fields.
+    if (typeof b.bio === "string") {
+      profile.bio = b.bio.slice(0, 1000);
+    }
+
+    if (typeof b.photo === "string") {
+      profile.image = b.photo.trim();
+    }
+
+    if (typeof b.hospital === "string") {
+      profile.hospital = b.hospital.trim() || "Not set";
+    }
+
+    if (b.fee !== undefined) {
+      profile.consultationFee = Number(b.fee);
+    }
+
+    if (b.experience !== undefined) {
+      profile.experience = Number(b.experience);
+    }
+
+    if (Array.isArray(b.visitTypes)) {
+      profile.visitTypes = b.visitTypes;
+    }
+
+    // These are separate database fields.
+    if (b.availability !== undefined) {
+      profile.availability = b.availability;
+    }
+
+    if (b.status !== undefined) {
+      profile.status = b.status;
+    }
+
+    // Only the schedule object is saved to the schedule field.
+    if (b.schedule !== undefined) {
+      profile.schedule = {
+        slotMinutes: Number(b.schedule.slotMinutes),
+        weekly: b.schedule.weekly
+          .map((w) => ({
+            day: Number(w.day),
+            enabled: w.enabled,
+            start: w.start,
+            end: w.end,
+          }))
+          .sort((a, b) => a.day - b.day),
+      };
+    }
+
+    if (b.daysOff !== undefined) {
+      profile.daysOff = [...new Set(b.daysOff)].sort();
+    }
+
+    // Sensitive credentials still require admin approval.
+    const sensitiveFields = ["specialty", "qualifications", "licenseNumber"];
+
+    const changes = {};
+
+    for (const key of sensitiveFields) {
+      if (
+        typeof b[key] === "string" &&
+        b[key].trim() !== String(profile[key] ?? "")
+      ) {
+        changes[key] = b[key].trim();
+      }
+    }
+
     const pending = Object.keys(changes).length > 0;
-    if (pending)
+
+    if (pending) {
       profile.pendingChanges = {
+        ...(profile.pendingChanges &&
+        profile.pendingChanges.status === "Pending"
+          ? profile.pendingChanges
+          : {}),
         ...changes,
         status: "Pending",
         requestedAt: new Date(),
       };
+    }
+
     await profile.save();
-    ok(res, shapeDoctor(profile), { pending });
+
+    return ok(res, shapeDoctor(profile), { pending });
   }),
 );
+
+// router.patch(
+//   "/profile",
+//   protect,
+//   role("doctor"),
+//   wrap(async (req, res) => {
+//     const { profile } = await doctorCtx(req);
+//     if (!profile) return fail(res, 404, "Doctor profile not found.");
+//     const b = req.body;
+
+//     // availability validation
+//     if (b.availability) {
+//       const av = b.availability;
+//       if (!SLOT_LENGTHS.includes(Number(av.slotMinutes)))
+//         return fail(res, 400, "Choose a valid slot length.");
+//       if (!Array.isArray(av.weekly) || av.weekly.length !== 7)
+//         return fail(res, 400, "Schedule must include all 7 days.");
+//       for (const w of av.weekly) {
+//         if (!w.enabled) continue;
+//         if (
+//           !isTime(w.start) ||
+//           !isTime(w.end) ||
+//           toMin(w.start) >= toMin(w.end)
+//         ) {
+//           return fail(
+//             res,
+//             400,
+//             "Each working day needs an end time after its start time.",
+//           );
+//         }
+//       }
+//     }
+//     if (b.daysOff && !(Array.isArray(b.daysOff) && b.daysOff.every(isDateKey)))
+//       return fail(res, 400, "Days off are not valid.");
+//     if (b.fee != null && (Number.isNaN(Number(b.fee)) || Number(b.fee) < 0))
+//       return fail(res, 400, "Fee must be a positive number.");
+//     if (
+//       b.experience != null &&
+//       (Number.isNaN(Number(b.experience)) || Number(b.experience) < 0)
+//     )
+//       return fail(res, 400, "Experience must be a positive number.");
+
+//     // user fields
+//     const userUpdate = {};
+//     if (typeof b.name === "string" && b.name.trim())
+//       userUpdate.name = b.name.trim();
+//     if (typeof b.phone === "string") userUpdate.phone = b.phone.trim();
+//     if (Object.keys(userUpdate).length)
+//       await User.findByIdAndUpdate(req.user._id, userUpdate, {
+//         runValidators: true,
+//       });
+
+//     // low-risk doctor fields -> saved immediately
+//     if (typeof b.bio === "string") profile.bio = b.bio.slice(0, 1000);
+//     if (typeof b.photo === "string") profile.image = b.photo.trim();
+//     if (b.fee != null) profile.consultationFee = Number(b.fee);
+//     if (b.experience != null) profile.experience = Number(b.experience);
+//     if (Array.isArray(b.visitTypes)) profile.visitTypes = b.visitTypes;
+//     if (b.availability) profile.schedule = b.availability;
+//     if (b.daysOff) profile.daysOff = [...new Set(b.daysOff)].sort();
+
+//     // sensitive fields -> pending admin approval
+//     const changes = {};
+//     for (const k of SENSITIVE) {
+//       if (typeof b[k] === "string" && b[k].trim() !== String(profile[k] ?? ""))
+//         changes[k] = b[k].trim();
+//     }
+//     const pending = Object.keys(changes).length > 0;
+//     if (pending)
+//       profile.pendingChanges = {
+//         ...changes,
+//         status: "Pending",
+//         requestedAt: new Date(),
+//       };
+//     await profile.save();
+//     ok(res, shapeDoctor(profile), { pending });
+//   }),
+// );
 
 router.patch(
   "/password",
