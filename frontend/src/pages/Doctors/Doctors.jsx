@@ -1,6 +1,20 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDoctors, getSpecialties } from "../../services/doctorService";
+import Swal from "sweetalert2";
+
+// Reads the logged-in user's role (adjust the keys if your app stores it elsewhere)
+const getUserRole = () => {
+  let role = null;
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    role = user?.role || null;
+  } catch {
+    role = null;
+  }
+  if (!role) role = localStorage.getItem("role");
+  return role ? String(role).toLowerCase() : null;
+};
 
 function Doctors() {
   const navigate = useNavigate();
@@ -129,8 +143,21 @@ function Doctors() {
   // -----------------------------
   // Book appointment
   // -----------------------------
-  const handleBookAppointment = (doctor) => {
+  const handleBookAppointment = async (doctor) => {
     if (doctor.availability === "Busy") {
+      return;
+    }
+
+    // Only patients can book: show a modal for everyone else
+    const role = getUserRole();
+    if (role && role !== "patient") {
+      await Swal.fire({
+        icon: "info",
+        title: "Patients only",
+        text: "Booking appointments is only available for patient accounts.",
+        confirmButtonText: "Got it",
+        confirmButtonColor: "#0891b2",
+      });
       return;
     }
 

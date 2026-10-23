@@ -163,11 +163,11 @@ const SignUp = () => {
     <div className="min-h-screen bg-[#E8EEEA] lg:p-6">
       <div className="mx-auto grid w-full max-w-6xl min-h-screen lg:min-h-[calc(100vh-3rem)] lg:grid-cols-2 overflow-hidden bg-[#F5F3EC] lg:rounded-3xl lg:shadow-xl lg:shadow-emerald-950/10">
         {/* ───────── Left panel — form ───────── */}
-        <main className="relative flex items-center justify-center px-5 py-10 sm:px-10 sm:py-12 lg:px-12">
+        <main className="relative flex items-center justify-center px-5 py-10 sm:px-12 sm:py-14 lg:px-14 lg:py-12">
           {/* Decorative dot grid */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute left-0 top-0 h-32 w-32 sm:h-40 sm:w-40 opacity-60"
+            className="pointer-events-none absolute left-0 top-0 h-24 w-24 sm:h-36 sm:w-36 opacity-50"
             style={{
               backgroundImage:
                 "radial-gradient(circle, #d6d1c4 1px, transparent 1px)",
@@ -175,13 +175,13 @@ const SignUp = () => {
             }}
           />
 
-          <div className="relative z-10 w-full max-w-[420px] motion-safe:animate-[fadeInUp_0.6s_ease-out]">
+          <div className="relative z-10 w-full max-w-[440px] motion-safe:animate-[fadeInUp_0.6s_ease-out]">
             {/* Brand mark */}
-            <div className="mb-8 sm:mb-10 flex items-center gap-3">
-              <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-teal-700 text-white shadow-lg shadow-teal-900/20">
+            <div className="mb-8 flex items-center gap-3 sm:mb-10">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-700 text-white shadow-lg shadow-teal-900/20 sm:h-12 sm:w-12">
                 <FaHeartbeat size={22} />
               </div>
-              <div>
+              <div className="space-y-0.5">
                 <p className="font-serif text-base font-bold leading-tight text-[#1a1a1a]">
                   AI Healthcare
                 </p>
@@ -191,39 +191,50 @@ const SignUp = () => {
               </div>
             </div>
 
-            <h1 className="font-serif text-3xl sm:text-4xl font-bold leading-tight text-[#1a1a1a]">
-              Create your account
-            </h1>
-            <p className="mt-2 mb-7 text-[15px] leading-relaxed text-gray-500">
-              Access your dashboard, appointments, and AI health tools.
-            </p>
+            {/* Heading */}
+            <header className="mb-8">
+              <h1 className="font-serif text-3xl font-bold leading-tight text-[#1a1a1a] sm:text-4xl">
+                Create your account
+              </h1>
+              <p className="mt-3 text-[15px] leading-relaxed text-gray-500">
+                Access your dashboard, appointments, and AI health tools.
+              </p>
+            </header>
 
             {/* Role selector */}
-            <div
-              role="radiogroup"
-              aria-label="Account type"
-              className="mb-6 flex rounded-xl border border-gray-200 bg-white p-1"
-            >
-              {ROLES.map(({ key, label, icon: Icon }) => {
-                const active = selectedRole === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => setSelectedRole(key)}
-                    className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F6E56]/40 ${
-                      active
-                        ? "bg-[#0F6E56] text-white shadow-sm"
-                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
-                    }`}
-                  >
-                    <Icon size={16} strokeWidth={2} />
-                    {label}
-                  </button>
-                );
-              })}
+            <div className="mb-7">
+              <p
+                id="role-label"
+                className="mb-2 text-sm font-medium text-gray-700"
+              >
+                I am a
+              </p>
+              <div
+                role="radiogroup"
+                aria-labelledby="role-label"
+                className="flex gap-1 rounded-xl border border-gray-200 bg-white p-1"
+              >
+                {ROLES.map(({ key, label, icon: Icon }) => {
+                  const active = selectedRole === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setSelectedRole(key)}
+                      className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F6E56]/40 ${
+                        active
+                          ? "bg-[#0F6E56] text-white shadow-sm"
+                          : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                      }`}
+                    >
+                      <Icon size={16} strokeWidth={2} />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <form onSubmit={handleRegister} className="space-y-5" noValidate>
@@ -231,7 +242,7 @@ const SignUp = () => {
               <div>
                 <label
                   htmlFor="signup-name"
-                  className="mb-1.5 block text-sm font-medium text-gray-700"
+                  className="mb-2 block text-sm font-medium text-gray-700"
                 >
                   Full name
                 </label>
@@ -260,7 +271,7 @@ const SignUp = () => {
               <div>
                 <label
                   htmlFor="signup-email"
-                  className="mb-1.5 block text-sm font-medium text-gray-700"
+                  className="mb-2 block text-sm font-medium text-gray-700"
                 >
                   Email address
                 </label>
@@ -288,7 +299,7 @@ const SignUp = () => {
               <div>
                 <label
                   htmlFor="signup-password"
-                  className="mb-1.5 block text-sm font-medium text-gray-700"
+                  className="mb-2 block text-sm font-medium text-gray-700"
                 >
                   Password
                 </label>
@@ -324,14 +335,14 @@ const SignUp = () => {
 
                 <ul
                   id="password-rules"
-                  className="mt-3 grid grid-cols-1 gap-x-4 gap-y-1.5 min-[400px]:grid-cols-2"
+                  className="mt-3.5 grid grid-cols-1 gap-x-4 gap-y-2 min-[400px]:grid-cols-2"
                 >
                   {PASSWORD_RULES.map(({ id, label, test }) => {
                     const ok = test(password);
                     return (
                       <li
                         key={id}
-                        className={`flex items-center gap-1.5 text-xs transition-colors ${
+                        className={`flex items-center gap-2 text-xs transition-colors ${
                           ok ? "text-[#0F6E56]" : "text-gray-400"
                         }`}
                       >
@@ -359,43 +370,48 @@ const SignUp = () => {
                 </p>
               )}
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="h-12 w-full rounded-xl bg-[#0F6E56] text-[15px] font-semibold text-white shadow-sm shadow-emerald-900/20 transition hover:bg-[#0c5945] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0F6E56]/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {submitting ? "Creating account..." : "Create account"}
-              </button>
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="h-12 w-full rounded-xl bg-[#0F6E56] text-[15px] font-semibold text-white shadow-sm shadow-emerald-900/20 transition hover:bg-[#0c5945] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0F6E56]/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting ? "Creating account..." : "Create account"}
+                </button>
+              </div>
             </form>
 
-            <div className="my-6 flex items-center gap-3">
+            {/* <div className="my-6 flex items-center gap-3">
               <div className="h-px flex-1 bg-gray-200" />
               <span className="text-xs text-gray-400">Or continue with</span>
               <div className="h-px flex-1 bg-gray-200" />
-            </div>
+            </div> */}
 
-            <button
+            {/* <button
               type="button"
               className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-gray-300/40"
             >
               <FcGoogle className="h-5 w-5" />
               Continue with Google
-            </button>
+            </button> */}
 
-            <p className="mt-8 text-center text-sm text-gray-500">
-              Already have an account?{" "}
-              <Link
-                to="/login"
-                className="font-semibold text-[#0F6E56] hover:underline"
-              >
-                Log in
-              </Link>
-            </p>
+            {/* Footer */}
+            <footer className="mt-8 border-t border-gray-200/80 pt-6">
+              <p className="text-center text-sm text-gray-500">
+                Already have an account?{" "}
+                <Link
+                  to="/login"
+                  className="font-semibold text-[#0F6E56] hover:underline"
+                >
+                  Log in
+                </Link>
+              </p>
 
-            <p className="mt-6 text-center text-xs leading-relaxed text-gray-400">
-              AI guidance is preliminary and does not replace professional
-              medical advice.
-            </p>
+              <p className="mt-4 text-center text-xs leading-relaxed text-gray-400">
+                AI guidance is preliminary and does not replace professional
+                medical advice.
+              </p>
+            </footer>
           </div>
         </main>
 
