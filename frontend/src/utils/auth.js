@@ -1,51 +1,76 @@
-// src/utils/auth.js
-// Central place for reading / clearing the login session.
+// Central place for reading and managing the login session.
 
+// Get the stored authentication token.
 export const getToken = () => localStorage.getItem("token");
 
+// Get the stored user.
 export const getUser = () => {
   try {
     const raw = localStorage.getItem("user");
     return raw ? JSON.parse(raw) : null;
   } catch {
-    // Corrupted localStorage value
     return null;
   }
 };
 
-// Reads the "exp" field of a JWT. Returns true if expired or unreadable.
+// Check whether a JWT has expired.
 export const isTokenExpired = (token) => {
   if (!token) return true;
 
   try {
-    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payloadPart = token.split(".")[1];
+
+    if (!payloadPart) return true;
+
+    const base64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+
     const payload = JSON.parse(atob(base64));
 
-    if (!payload.exp) return false; // token without expiry
+    // A token without an exp field is treated as non-expiring.
+    if (payload.exp == null) return false;
+
     return payload.exp * 1000 <= Date.now();
   } catch {
     return true;
   }
 };
 
+// Check whether a valid local login session exists.
 export const isLoggedIn = () => {
   const token = getToken();
+
   return Boolean(token) && !isTokenExpired(token) && Boolean(getUser());
 };
 
+// Clear the login session.
 export const clearSession = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
+
+  // Notify components that the session has changed.
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("userUpdated"));
+  }
 };
 
-// Default landing page for each role
+// Normalize role names.
+export const normalizeRole = (role) => {
+  return typeof role === "string" ? role.trim().toLowerCase() : "";
+};
+
+// Return the dashboard URL for the specified role.
 export const getRoleHome = (role) => {
-  switch (role) {
+  switch (normalizeRole(role)) {
+    case "patient":
+      return "/dashboard/patientHome";
+
+    case "doctor":
+      return "/dashboard/doctorHome";
+
     case "admin":
       return "/dashboard/adminHome";
-    case "doctor":
-      return "/dashboard/seller";
+
     default:
-      return "/dashboard/patientHome";
+      return "/login";
   }
 };

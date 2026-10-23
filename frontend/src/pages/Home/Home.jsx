@@ -1,10 +1,7 @@
+import FAQ from "./Faq";
 import Hero from "./Hero";
 import Services from "./Services";
-// import Features from "./Features";
-// import Doctors from "./Doctors";
-// import Testimonials from "./Testimonials";
-// import CTA from "./CTA";
-
+import Features from "./Features";
 function Home() {
   return (
     <>
@@ -12,13 +9,13 @@ function Home() {
 
       <Services />
 
-      {/* <Features />
+      <Features/>
 
-      <Doctors />
+      <FAQ />
 
-      <Testimonials />
 
-      <CTA /> */}
+
+     
     </>
   );
 }

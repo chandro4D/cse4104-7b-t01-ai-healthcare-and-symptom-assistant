@@ -1,6 +1,6 @@
-// Cloude
-import { useEffect, useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
+
+import { Target, Eye, ShieldCheck, Clock, Sparkles } from "lucide-react";
 import {
   HiOutlineChatBubbleLeftRight,
   HiOutlineDocumentMagnifyingGlass,
@@ -11,7 +11,6 @@ import {
 } from "react-icons/hi2";
 import { FaHeartPulse, FaDroplet } from "react-icons/fa6";
 
-// ChatGPT
 import {
   FaHeartbeat,
   FaRobot,
@@ -28,7 +27,26 @@ import hero from "../../assets/images/about.jpg";
 import doctor from "../../assets/images/doctor.jpg";
 import ai from "../../assets/images/ai.jpg";
 
-// Cloude
+// ---------- Mission / Vision data (was missing) ----------
+const about = [
+  {
+    title: "Our Mission",
+    Icon: Target,
+    text: "We aim to make healthcare accessible, intelligent, affordable, and available to everyone by leveraging Artificial Intelligence and modern web technologies.",
+  },
+  {
+    title: "Our Vision",
+    Icon: Eye,
+    text: "To become one of the world's most trusted AI healthcare ecosystems, where patients receive personalized, fast, and secure healthcare support anytime.",
+  },
+];
+
+const highlights = [
+  { label: "Secure & private", Icon: ShieldCheck },
+  { label: "Available 24/7", Icon: Clock },
+  { label: "AI-powered", Icon: Sparkles },
+];
+
 function HeartbeatLine() {
   return (
     <div className="relative h-24 w-full max-w-2xl mx-auto md:mx-0 overflow-hidden">
@@ -133,7 +151,6 @@ const steps = [
   },
 ];
 
-// ChatGPT
 const features_one = [
   {
     icon: <FaRobot size={40} />,
@@ -190,29 +207,29 @@ function About() {
           <div className="absolute w-96 h-96 rounded-full bg-white/10 blur-3xl -top-20 -left-20"></div>
           <div className="absolute w-96 h-96 rounded-full bg-cyan-300/20 blur-3xl bottom-0 right-0"></div>
 
-          <div className="max-w-7xl mx-auto px-6 py-24 grid lg:grid-cols-2 items-center gap-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24 grid lg:grid-cols-2 items-center gap-12 lg:gap-16">
             <motion.div
               initial={{ opacity: 0, x: -80 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <span className="px-4 py-2 rounded-full bg-white/20 backdrop-blur">
+              <span className="inline-block px-4 py-2 rounded-full bg-white/20 backdrop-blur text-sm">
                 AI Powered Healthcare
               </span>
 
-              <h1 className="text-5xl lg:text-6xl font-extrabold mt-8 leading-tight">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold mt-8 leading-tight">
                 Smarter Healthcare
                 <br />
                 Better Lives.
               </h1>
 
-              <p className="mt-8 text-lg text-slate-100 leading-8">
+              <p className="mt-6 md:mt-8 text-base md:text-lg text-slate-100 leading-7 md:leading-8">
                 Our AI Healthcare platform combines artificial intelligence,
                 digital healthcare, secure medical records, symptom analysis,
                 and online doctor appointments into one intelligent ecosystem.
               </p>
 
-              <button className="mt-10 bg-white text-sky-700 px-7 py-4 rounded-xl font-bold flex items-center gap-3 hover:scale-105 duration-300">
+              <button className="mt-8 md:mt-10 bg-white text-sky-700 px-6 py-3 md:px-7 md:py-4 rounded-xl font-bold flex items-center gap-3 hover:scale-105 duration-300">
                 Explore Platform
                 <FaArrowRight />
               </button>
@@ -223,29 +240,34 @@ function About() {
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8 }}
               src={hero}
-              className="rounded-3xl shadow-2xl"
+              alt="AI healthcare platform"
+              className="w-full rounded-3xl shadow-2xl"
             />
           </div>
         </section>
 
         {/* About */}
 
-        <section className="max-w-7xl mx-auto py-24 px-6 grid lg:grid-cols-2 gap-16 items-center">
-          <img src={ai} className="rounded-3xl shadow-xl" />
+        <section className="max-w-7xl mx-auto py-16 md:py-24 px-4 sm:px-6 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <img
+            src={ai}
+            alt="Artificial intelligence in healthcare"
+            className="w-full rounded-3xl shadow-xl"
+          />
 
           <div>
-            <h2 className="text-4xl font-bold text-slate-800">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-800">
               Revolutionizing Healthcare with Artificial Intelligence
             </h2>
 
-            <p className="mt-6 text-gray-600 leading-8">
+            <p className="mt-6 text-gray-600 leading-7 md:leading-8">
               Our platform bridges patients and healthcare providers through
               AI-driven technology. Whether you need symptom analysis,
               appointment booking, prescription management, or intelligent
               medical assistance, everything is available in one secure place.
             </p>
 
-            <div className="grid grid-cols-2 gap-5 mt-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-10">
               <div className="p-6 rounded-2xl shadow bg-cyan-50">
                 <FaHeartbeat size={40} className="text-cyan-600 mb-3" />
                 <h3 className="font-bold">Patient First</h3>
@@ -261,16 +283,18 @@ function About() {
 
         {/* Features */}
 
-        <section className="bg-slate-50 py-24">
-          <div className="max-w-7xl mx-auto px-6">
-            <h2 className="text-center text-4xl font-bold">Our Features</h2>
+        <section className="bg-slate-50 py-16 md:py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <h2 className="text-center text-3xl md:text-4xl font-bold">
+              Our Features
+            </h2>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-16">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mt-12 md:mt-16">
               {features_one.map((feature, index) => (
                 <motion.div
                   whileHover={{ y: -10 }}
                   key={index}
-                  className="bg-white rounded-3xl p-8 shadow hover:shadow-2xl duration-300"
+                  className="bg-white rounded-3xl p-6 md:p-8 shadow hover:shadow-2xl duration-300"
                 >
                   <div className="text-cyan-600 mb-5">{feature.icon}</div>
 
@@ -285,7 +309,7 @@ function About() {
 
         {/* Statistics */}
 
-        <section className="py-24 bg-gradient-to-r from-cyan-600 to-blue-700 text-white">
+        {/* <section className="py-24 bg-gradient-to-r from-cyan-600 to-blue-700 text-white">
           <div className="max-w-6xl mx-auto grid md:grid-cols-4 gap-10 text-center">
             {stats.map((item, index) => (
               <div key={index}>
@@ -295,55 +319,131 @@ function About() {
               </div>
             ))}
           </div>
-        </section>
+        </section> */}
 
         {/* Mission */}
 
-        <section className="max-w-7xl mx-auto py-24 px-6 grid lg:grid-cols-2 gap-16 items-center">
-          <div>
-            <h2 className="text-4xl font-bold">Our Mission</h2>
+        <section className="relative overflow-hidden bg-gradient-to-br from-[#ECFDF5] via-white to-[#E0F7F4] py-16 md:py-24">
+          {/* soft ambient blobs */}
+          <div className="pointer-events-none absolute -left-24 top-0 h-64 w-64 rounded-full bg-emerald-300/30 blur-3xl" />
+          <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
 
-            <p className="mt-6 text-gray-600 leading-8">
-              We aim to make healthcare accessible, intelligent, affordable, and
-              available to everyone by leveraging Artificial Intelligence and
-              modern web technologies.
-            </p>
+          <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-10">
+            {/* Left: content */}
+            <motion.div
+              initial={{ opacity: 0, x: -40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.7 }}
+            >
+              <span className="text-xs font-semibold tracking-[0.2em] text-teal-600 sm:text-sm">
+                ABOUT US
+              </span>
+              <h2 className="mt-3 text-3xl font-bold leading-tight text-slate-900 sm:text-4xl md:text-5xl">
+                Healthcare that is{" "}
+                <span className="text-emerald-500">smarter</span>
+                <br className="hidden sm:block" /> and within everyone&apos;s
+                reach
+              </h2>
 
-            <h2 className="text-4xl font-bold mt-12">Our Vision</h2>
+              <div className="mt-8 space-y-5">
+                {about.map(({ title, text, Icon }) => (
+                  <div
+                    key={title}
+                    className="flex gap-4 rounded-2xl border border-emerald-100 bg-white p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl sm:p-6"
+                  >
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                      <Icon size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 sm:text-xl">
+                        {title}
+                      </h3>
+                      <p className="mt-2 text-sm leading-7 text-gray-600 sm:text-base">
+                        {text}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-            <p className="mt-6 text-gray-600 leading-8">
-              To become one of the world's most trusted AI healthcare ecosystems
-              where patients receive personalized, fast, and secure healthcare
-              support anytime.
-            </p>
+              <ul className="mt-8 flex flex-wrap gap-3">
+                {highlights.map(({ label, Icon }) => (
+                  <li
+                    key={label}
+                    className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm"
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+
+            {/* Right: image */}
+            <motion.div
+              initial={{ opacity: 0, x: 40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.8 }}
+              className="relative mx-auto w-full max-w-md lg:max-w-none"
+            >
+              {/* offset decorative frame */}
+              <div className="absolute -bottom-4 -right-4 h-full w-full rounded-3xl border-2 border-emerald-300/60 sm:-bottom-6 sm:-right-6" />
+              <div className="absolute -left-4 -top-4 h-24 w-24 rounded-full bg-emerald-200/60 blur-2xl sm:-left-6 sm:-top-6" />
+
+              <img
+                src={doctor}
+                alt="Doctor providing AI-assisted healthcare"
+                className="relative z-10 h-auto w-full rounded-3xl object-cover shadow-xl"
+              />
+
+              {/* floating badge */}
+              <motion.div
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 4, repeat: Infinity }}
+                className="absolute -bottom-6 left-4 z-20 flex items-center gap-3 rounded-2xl bg-white p-3 shadow-xl sm:left-[-24px] sm:p-4"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-white sm:h-12 sm:w-12">
+                  <ShieldCheck size={22} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900 sm:text-base">
+                    Trusted Care
+                  </p>
+                  <p className="text-xs text-gray-500 sm:text-sm">
+                    Secure &amp; personalized
+                  </p>
+                </div>
+              </motion.div>
+            </motion.div>
           </div>
-
-          <img src={doctor} className="rounded-3xl shadow-xl" />
         </section>
 
         {/* CTA */}
 
-        <section className="bg-cyan-700 py-20 text-white">
-          <div className="max-w-5xl mx-auto text-center px-6">
-            <h2 className="text-5xl font-bold">
+        <section className="bg-cyan-700 py-16 md:py-20 text-white">
+          <div className="max-w-5xl mx-auto text-center px-4 sm:px-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold">
               Ready to Experience Smart Healthcare?
             </h2>
 
-            <p className="mt-6 text-lg">
+            <p className="mt-6 text-base md:text-lg">
               Join thousands of users who trust our AI-powered healthcare
               platform for appointments, symptom analysis, prescriptions, and
               personalized medical assistance.
             </p>
 
-            <button className="mt-10 bg-white text-cyan-700 px-10 py-4 rounded-xl font-bold hover:scale-105 duration-300">
+            <button className="mt-8 md:mt-10 bg-white text-cyan-700 px-8 py-3 md:px-10 md:py-4 rounded-xl font-bold hover:scale-105 duration-300">
               Book Appointment
             </button>
           </div>
         </section>
       </div>
+
       <div className="bg-[#0B1E1C] text-[#EAF6F3] font-body min-h-screen overflow-x-hidden">
         {/* ---------------- HERO ---------------- */}
-        <section className="relative px-6 md:px-12 pt-24 pb-20 md:pt-32 md:pb-28">
+        <section className="relative px-4 sm:px-6 md:px-12 pt-20 pb-16 md:pt-32 md:pb-28">
           {/* ambient glow */}
           <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-[#2DD4BF]/10 blur-[120px]" />
           <div className="pointer-events-none absolute top-20 right-0 h-72 w-72 rounded-full bg-[#F6A94A]/10 blur-[110px]" />
@@ -352,7 +452,7 @@ function About() {
             <FadeUp>
               <span className="inline-flex items-center gap-2 rounded-full border border-[#2DD4BF]/25 bg-[#2DD4BF]/5 px-4 py-1.5 text-xs font-mono tracking-wider text-[#7FE3D6] uppercase">
                 <FaHeartPulse className="text-sm" />
-                AI Healthcare & Symptom Assistant
+                AI Healthcare &amp; Symptom Assistant
               </span>
             </FadeUp>
 
@@ -366,8 +466,8 @@ function About() {
             <FadeUp delay={0.2}>
               <p className="mt-6 max-w-2xl mx-auto md:mx-0 text-base md:text-lg text-[#9FBAB5] leading-relaxed">
                 We built this platform so that getting a first read on your
-                health doesn't start with a waiting room. Chat with an AI about
-                your symptoms, get your prescriptions read and organized
+                health doesn&apos;t start with a waiting room. Chat with an AI
+                about your symptoms, get your prescriptions read and organized
                 automatically, and book a real doctor the moment you need one —
                 all in one place.
               </p>
@@ -392,8 +492,8 @@ function About() {
         </section>
 
         {/* ---------------- MISSION ---------------- */}
-        <section className="px-6 md:px-12 py-16 border-t border-white/5">
-          <div className="max-w-5xl mx-auto grid md:grid-cols-[1fr_1.4fr] gap-10 items-start">
+        <section className="px-4 sm:px-6 md:px-12 py-16 border-t border-white/5">
+          <div className="max-w-5xl mx-auto grid md:grid-cols-[1fr_1.4fr] gap-6 md:gap-10 items-start">
             <FadeUp>
               <h2 className="font-display font-700 text-2xl md:text-3xl text-white">
                 Why we built this
@@ -406,19 +506,19 @@ function About() {
                 Our goal is to close it. This assistant gives you a clear,
                 judgment-free first read on your symptoms, keeps your
                 prescriptions and history organized without extra effort, and
-                makes the step from "something feels off" to "I've booked a
-                doctor" as short as possible.
+                makes the step from &quot;something feels off&quot; to
+                &quot;I&apos;ve booked a doctor&quot; as short as possible.
               </p>
             </FadeUp>
           </div>
         </section>
 
         {/* ---------------- FEATURES ---------------- */}
-        <section className="px-6 md:px-12 py-20 border-t border-white/5">
+        <section className="px-4 sm:px-6 md:px-12 py-16 md:py-20 border-t border-white/5">
           <div className="max-w-6xl mx-auto">
-            <FadeUp className="max-w-2xl mb-14">
+            <FadeUp className="max-w-2xl mb-10 md:mb-14">
               <span className="font-mono text-xs tracking-wider text-[#7FE3D6] uppercase">
-                What's inside
+                What&apos;s inside
               </span>
               <h2 className="mt-3 font-display font-700 text-3xl md:text-4xl text-white">
                 One assistant, the whole first step of care.
@@ -449,27 +549,28 @@ function About() {
         </section>
 
         {/* ---------------- HOW IT WORKS ---------------- */}
-        <section className="px-6 md:px-12 py-20 border-t border-white/5 bg-[#0A1B19]">
+        <section className="px-4 sm:px-6 md:px-12 py-16 md:py-20 border-t border-white/5 bg-[#0A1B19]">
           <div className="max-w-5xl mx-auto">
-            <FadeUp className="max-w-2xl mb-14">
+            <FadeUp className="max-w-2xl mb-10 md:mb-14">
               <span className="font-mono text-xs tracking-wider text-[#F6A94A] uppercase">
                 How it works
               </span>
               <h2 className="mt-3 font-display font-700 text-3xl md:text-4xl text-white">
-                From "something's wrong" to "it's handled."
+                From &quot;something&apos;s wrong&quot; to &quot;it&apos;s
+                handled.&quot;
               </h2>
             </FadeUp>
 
             <div className="relative">
               <div className="hidden md:block absolute left-[27px] top-2 bottom-2 w-px bg-gradient-to-b from-[#2DD4BF]/40 via-[#2DD4BF]/10 to-transparent" />
-              <div className="space-y-10">
+              <div className="space-y-8 md:space-y-10">
                 {steps.map((s, i) => (
                   <FadeUp key={s.step} delay={0.08 * i}>
-                    <div className="flex gap-6 items-start">
-                      <div className="shrink-0 h-14 w-14 rounded-full border border-[#2DD4BF]/30 bg-[#0F2C29] flex items-center justify-center font-mono text-sm text-[#2DD4BF]">
+                    <div className="flex gap-4 md:gap-6 items-start">
+                      <div className="shrink-0 h-12 w-12 md:h-14 md:w-14 rounded-full border border-[#2DD4BF]/30 bg-[#0F2C29] flex items-center justify-center font-mono text-sm text-[#2DD4BF]">
                         {s.step}
                       </div>
-                      <div className="pt-2">
+                      <div className="pt-1 md:pt-2">
                         <h3 className="font-display font-600 text-lg text-white">
                           {s.title}
                         </h3>
@@ -486,9 +587,9 @@ function About() {
         </section>
 
         {/* ---------------- TRUST STRIP ---------------- */}
-        <section className="px-6 md:px-12 py-16 border-t border-white/5">
+        <section className="px-4 sm:px-6 md:px-12 py-16 border-t border-white/5">
           <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-6 md:gap-10 justify-between">
-            <FadeUp className="flex items-center gap-3">
+            <FadeUp className="flex items-start md:items-center gap-3">
               <HiOutlineShieldCheck className="text-2xl text-[#2DD4BF] shrink-0" />
               <p className="text-sm md:text-base text-[#9FBAB5]">
                 Built as an academic project — this assistant supports your
@@ -501,13 +602,14 @@ function About() {
         </section>
 
         {/* ---------------- CTA ---------------- */}
-        <section className="px-6 md:px-12 py-24 border-t border-white/5 text-center">
+        <section className="px-4 sm:px-6 md:px-12 py-20 md:py-24 border-t border-white/5 text-center">
           <FadeUp className="max-w-2xl mx-auto">
             <h2 className="font-display font-700 text-3xl md:text-4xl text-white">
               Your health, one conversation away.
             </h2>
             <p className="mt-4 text-[#9FBAB5]">
-              No sign-up friction, no jargon — just tell us what's going on.
+              No sign-up friction, no jargon — just tell us what&apos;s going
+              on.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
               <button className="rounded-xl bg-[#2DD4BF] px-8 py-3.5 font-display font-600 text-[#0B1E1C] hover:bg-[#5eeadb] transition-colors">

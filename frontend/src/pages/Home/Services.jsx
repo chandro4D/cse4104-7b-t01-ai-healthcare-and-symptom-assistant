@@ -41,25 +41,25 @@ function Services() {
   }, []);
 
   return (
-    <section className="relative overflow-hidden bg-slate-50 py-24">
+    <section className="relative overflow-hidden bg-slate-50 py-16 md:py-24">
       {/* soft ambient blobs */}
       <div className="pointer-events-none absolute -left-32 top-10 h-72 w-72 rounded-full bg-teal-200/30 blur-3xl" />
       <div className="pointer-events-none absolute -right-32 bottom-10 h-72 w-72 rounded-full bg-blue-200/30 blur-3xl" />
 
-      <div className="relative max-w-7xl mx-auto px-6">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center">
-          <span className="text-sm font-semibold tracking-[0.2em] text-teal-600">
+          <span className="text-xs sm:text-sm font-semibold tracking-[0.2em] text-teal-600">
             AI-POWERED CARE
           </span>
-          <h2 className="font-display mt-3 text-4xl font-bold text-slate-900 md:text-5xl">
+          <h2 className="font-display mt-3 text-3xl sm:text-4xl font-bold text-slate-900 md:text-5xl">
             How <span className="text-teal-600">AiHealthcare</span> Works
           </h2>
-          <p className="mt-4 text-slate-500 max-w-xl mx-auto">
+          <p className="mt-4 text-sm sm:text-base text-slate-500 max-w-xl mx-auto">
             Three simple steps between you and better health decisions.
           </p>
         </div>
 
-        <div className="relative mt-20 grid gap-10 md:grid-cols-3">
+        <div className="relative mt-12 md:mt-20 grid gap-8 md:gap-10 md:grid-cols-3">
           {/* animated ECG connector line (desktop only) */}
           <svg
             ref={lineRef}

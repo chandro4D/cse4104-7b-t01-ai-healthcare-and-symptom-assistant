@@ -47,10 +47,12 @@ function Brand() {
       <div className="w-9 h-9 rounded-lg bg-teal-600 flex items-center justify-center text-white font-bold text-sm">
         AH
       </div>
+
       <div>
         <p className="text-white font-semibold leading-tight text-[15px]">
           AI Healthcare
         </p>
+
         <p className="text-[10px] tracking-widest text-slate-400 uppercase">
           Symptom Assistant
         </p>
@@ -70,7 +72,7 @@ function readUser() {
 
 function Dashboard() {
   const user = readUser();
-  const role = user?.role;
+  const role = user?.role?.toLowerCase();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
@@ -80,11 +82,16 @@ function Dashboard() {
     setMenuOpen(false);
   }, [location.pathname]);
 
-  // Close on Escape + lock page scroll while the drawer is open (mobile only).
+  // Close on Escape and lock page scroll while the mobile drawer is open.
   useEffect(() => {
     if (!menuOpen) return undefined;
 
-    const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+      }
+    };
+
     window.addEventListener("keydown", onKey);
 
     const previous = document.body.style.overflow;
@@ -98,25 +105,26 @@ function Dashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#f6f5f1]">
-      {/* Backdrop (mobile / tablet only) */}
+      {/* Backdrop: mobile and tablet only */}
       <div
         onClick={() => setMenuOpen(false)}
         aria-hidden="true"
-        className={`fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-[1px] transition-opacity duration-200 lg:hidden ${
+        className={`fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-[1px] transition-opacity duration-200 lg:hidden ${
           menuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       />
 
-      {/* Sidebar: slide-in drawer below lg, fixed column on lg and up */}
+      {/* Sidebar */}
       <aside
         id="app-sidebar"
-        className={`fixed inset-y-0 left-0 z-50 w-[260px] max-w-[85vw] bg-[#0f211d] flex flex-col transition-transform duration-200 ease-out ${
+        className={`fixed inset-y-0 left-0 z-40 w-[260px] max-w-[85vw] bg-[#0f211d] flex flex-col transition-transform duration-200 ease-out ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:self-start lg:shrink-0 lg:max-w-none`}
       >
         {/* Brand */}
         <div className="flex items-center justify-between px-6 py-6">
           <Brand />
+
           <button
             type="button"
             onClick={() => setMenuOpen(false)}
@@ -127,98 +135,123 @@ function Dashboard() {
           </button>
         </div>
 
+        {/* Navigation */}
         <nav className="flex-1 px-3 pb-6 overflow-y-auto">
           <ul className="space-y-1">
+            {/* Admin Menu */}
             {role === "admin" && (
               <>
                 <SectionLabel>Admin</SectionLabel>
+
                 <SidebarLink to="/dashboard/adminHome" icon={<FaHome />}>
                   Dashboard
                 </SidebarLink>
+
                 <SidebarLink to="/dashboard/userManagement" icon={<FaList />}>
                   User Management
                 </SidebarLink>
+
                 <SidebarLink
                   to="/dashboard/doctorVerification"
                   icon={<FaUsers />}
                 >
                   Doctors Management
                 </SidebarLink>
+
                 <SidebarLink
                   to="/dashboard/appointmentOverview"
                   icon={<FaCartPlus />}
                 >
                   Appointment Overview
                 </SidebarLink>
+
                 <SectionLabel>General</SectionLabel>
+
                 <SidebarLink to="/" icon={<FaHome />}>
                   Home
                 </SidebarLink>
+
                 <SidebarLink to="/doctors" icon={<FaUserMd />}>
                   Doctors
                 </SidebarLink>
               </>
             )}
 
+            {/* Doctor Menu */}
             {role === "doctor" && (
               <>
                 <SectionLabel>Doctor</SectionLabel>
+
                 <SidebarLink to="/dashboard/doctorHome" icon={<FaHome />}>
                   Dashboard
                 </SidebarLink>
+
                 <SidebarLink
                   to="/dashboard/appointmentManagement"
                   icon={<FaCalendarAlt />}
                 >
                   Appointment Management
                 </SidebarLink>
+
                 <SidebarLink
                   to="/dashboard/patientVisitRequests"
                   icon={<FaUsers />}
                 >
                   Patient Visit Requests
                 </SidebarLink>
+
                 <SidebarLink
                   to="/dashboard/patientRecordsDetails"
                   icon={<FaCartPlus />}
                 >
                   Patient Details
                 </SidebarLink>
+
                 <SidebarLink
                   to="/dashboard/doctorProfileAndAvailability"
                   icon={<FaUser />}
                 >
                   Profile & Availability
                 </SidebarLink>
+
                 <SectionLabel>General</SectionLabel>
+
                 <SidebarLink to="/" icon={<FaHome />}>
                   Home
                 </SidebarLink>
+
                 <SidebarLink to="/doctors" icon={<FaUserMd />}>
                   Doctors
                 </SidebarLink>
               </>
             )}
 
+            {/* Patient Menu */}
             {role === "patient" && (
               <>
                 <SectionLabel>Patient</SectionLabel>
+
                 <SidebarLink to="/dashboard/patientHome" icon={<FaHome />}>
                   Dashboard
                 </SidebarLink>
+
                 <SidebarLink
-                  to="/dashboard/PatientAppointments"
+                  to="/dashboard/patientAppointments"
                   icon={<FaCalendarAlt />}
                 >
                   Appointments
                 </SidebarLink>
+
                 <SidebarLink to="/dashboard/symptomChecker" icon={<FaHeart />}>
                   AI Symptom Checker
                 </SidebarLink>
+
                 <SectionLabel>General</SectionLabel>
+
                 <SidebarLink to="/" icon={<FaHome />}>
                   Home
                 </SidebarLink>
+
                 <SidebarLink to="/doctors" icon={<FaUserMd />}>
                   Doctors
                 </SidebarLink>
@@ -236,8 +269,8 @@ function Dashboard() {
 
       {/* Main content area */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Mobile / tablet top bar */}
-        <header className="lg:hidden sticky top-0 z-30 flex items-center gap-3 bg-[#0f211d] px-4 py-3 shadow-sm">
+        {/* Mobile and tablet top bar */}
+        <header className="lg:hidden sticky top-0 z-20 flex items-center gap-3 bg-[#0f211d] px-4 py-3 shadow-sm">
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
@@ -248,9 +281,11 @@ function Dashboard() {
           >
             <FaBars />
           </button>
+
           <Brand />
         </header>
 
+        {/* Page content */}
         <div className="flex-1 min-w-0">
           <Outlet />
         </div>
