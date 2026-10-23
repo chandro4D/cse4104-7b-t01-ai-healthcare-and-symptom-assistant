@@ -2,13 +2,17 @@ const doctorService = require("../services/Doctor.service");
 
 const getDoctors = async (req, res, next) => {
   try {
-    const { search = "", specialty = "All", page = 1, limit = 9 } = req.query;
+    const { search = "", specialty = "All" } = req.query;
+
+    // Sanitize pagination (prevents NaN, 0, negative or huge limits)
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 9, 1), 50);
 
     const result = await doctorService.getDoctors({
       search,
       specialty,
-      page: Number(page),
-      limit: Number(limit),
+      page,
+      limit,
     });
 
     res.status(200).json({
