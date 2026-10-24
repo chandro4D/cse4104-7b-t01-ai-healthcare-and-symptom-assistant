@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mic,
@@ -13,10 +14,17 @@ import {
   History,
 } from "lucide-react";
 import axios from "axios";
+import Swal from "sweetalert2";
 import MedicalResponse from "./MedicalResponse";
 
 // Set VITE_API_URL in your .env for production, e.g. https://api.yoursite.com
 const API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/v1/ai`;
+
+// Change this to match your React Router login route.
+const LOGIN_ROUTE = "/login";
+
+const SESSION_EXPIRED_MESSAGE =
+  "Your session has expired. Please log in again.";
 
 const INITIAL_MESSAGES = [
   {
@@ -91,7 +99,7 @@ const authConfig = () => ({
 
 function errorText(err, fallback) {
   if (err?.response?.status === 401) {
-    return "Your session has expired. Please log in again.";
+    return SESSION_EXPIRED_MESSAGE;
   }
   return err?.response?.data?.message || fallback;
 }
@@ -107,6 +115,8 @@ function formatDate(value) {
 }
 
 export default function SymptomChecker() {
+  const navigate = useNavigate();
+
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -115,11 +125,42 @@ export default function SymptomChecker() {
   const [isTyping, setIsTyping] = useState(false);
   const [listLoading, setListLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(false);
-  const [error, setError] = useState("");
   const [panel, setPanel] = useState("chat"); // used below xl only
   const scrollRef = useRef(null);
 
   const initials = getInitials();
+
+  // Shows a SweetAlert popup for an API error.
+  // 401 -> "Session expired" with a Log in button, anything else -> error popup.
+  const showError = useCallback(
+    (err, fallback) => {
+      // Don't stack popups on top of each other (e.g. two requests failing together)
+      if (Swal.isVisible()) return;
+
+      if (err?.response?.status === 401) {
+        Swal.fire({
+          icon: "warning",
+          title: "Session expired",
+          text: SESSION_EXPIRED_MESSAGE,
+          confirmButtonText: "Log in",
+          confirmButtonColor: "#047857",
+          allowOutsideClick: false,
+        }).then((result) => {
+          if (result.isConfirmed) navigate(LOGIN_ROUTE);
+        });
+        return;
+      }
+
+      Swal.fire({
+        icon: "error",
+        title: "Something went wrong",
+        text: errorText(err, fallback),
+        confirmButtonText: "OK",
+        confirmButtonColor: "#047857",
+      });
+    },
+    [navigate],
+  );
 
   // Auto-scroll to the newest message
   useEffect(() => {
@@ -135,11 +176,11 @@ export default function SymptomChecker() {
       const { data } = await axios.get(`${API}/conversations`, authConfig());
       setConversations(data.conversations || []);
     } catch (err) {
-      setError(errorText(err, "Could not load your consultation history."));
+      showError(err, "Could not load your consultation history.");
     } finally {
       setListLoading(false);
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     loadConversations();
@@ -151,7 +192,6 @@ export default function SymptomChecker() {
     setMessages(INITIAL_MESSAGES);
     setAnalysis(null);
     setInput("");
-    setError("");
     setPanel("chat");
   };
 
@@ -163,7 +203,6 @@ export default function SymptomChecker() {
     }
 
     setChatLoading(true);
-    setError("");
     setPanel("chat");
 
     try {
@@ -177,7 +216,7 @@ export default function SymptomChecker() {
       setMessages([...INITIAL_MESSAGES, ...convo.messages]);
       setAnalysis(convo.analysis || null);
     } catch (err) {
-      setError(errorText(err, "Could not open this consultation."));
+      showError(err, "Could not open this consultation.");
     } finally {
       setChatLoading(false);
     }
@@ -186,16 +225,38 @@ export default function SymptomChecker() {
   const deleteConversation = async (e, id) => {
     e.stopPropagation();
     if (isTyping) return;
-    if (!window.confirm("Delete this consultation? This cannot be undone.")) {
-      return;
-    }
+
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "Delete this consultation?",
+      text: "This cannot be undone.",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#e11d48",
+      cancelButtonColor: "#78716c",
+      reverseButtons: true,
+      focusCancel: true,
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
       await axios.delete(`${API}/conversations/${id}`, authConfig());
       setConversations((list) => list.filter((c) => c._id !== id));
       if (id === activeId) newChat();
+
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "Consultation deleted",
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+      });
     } catch (err) {
-      setError(errorText(err, "Could not delete this consultation."));
+      showError(err, "Could not delete this consultation.");
     }
   };
 
@@ -206,7 +267,6 @@ export default function SymptomChecker() {
     // Show the user's message immediately
     setMessages((m) => [...m, { role: "user", text }]);
     setInput("");
-    setError("");
     setIsTyping(true);
 
     try {
@@ -223,6 +283,7 @@ export default function SymptomChecker() {
       // Refresh the sidebar (new title / new order) for saved health chats
       if (data.isHealthQuery !== false) loadConversations();
     } catch (err) {
+      // Keep the friendly message inside the chat...
       setMessages((m) => [
         ...m,
         {
@@ -233,6 +294,9 @@ export default function SymptomChecker() {
           ),
         },
       ]);
+
+      // ...and for an expired session also offer the Log in popup.
+      if (err?.response?.status === 401) showError(err);
     } finally {
       setIsTyping(false);
     }
@@ -431,15 +495,6 @@ export default function SymptomChecker() {
               )}
               <AnimatePresence>{isTyping && <TypingBubble />}</AnimatePresence>
             </div>
-
-            {error && (
-              <p
-                role="alert"
-                className="border-t border-rose-100 bg-rose-50 px-4 py-2 text-xs font-medium text-rose-700 sm:px-6"
-              >
-                {error}
-              </p>
-            )}
 
             <div className="flex items-center gap-2 border-t border-stone-100 px-3 py-3 sm:gap-3 sm:px-6">
               <button
