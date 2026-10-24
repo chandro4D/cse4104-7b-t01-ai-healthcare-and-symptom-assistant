@@ -3,13 +3,22 @@ import { useLocation } from "react-router-dom";
 import axios from "axios";
 import Swal from "sweetalert2";
 
-const API_URL = "http://localhost:5000/api/v1/appointments";
+/* --------------------------- API Configuration --------------------------- */
 
-// Clinic rules (change as needed)
+// Production: Vercel environment variable (VITE_API_URL)
+// Development: http://localhost:5000
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:5000"
+).replace(/\/+$/, "");
+
+const API_URL = `${API_BASE_URL}/api/v1/appointments`;
+
+/* ----------------------------- Clinic Rules ------------------------------ */
+
 const OPEN_TIME = "09:00";
 const CLOSE_TIME = "21:00";
 const MAX_DAYS_AHEAD = 90;
-const MIN_CANCEL_HOURS = 2; // must match backend rule
+const MIN_CANCEL_HOURS = 2;
 
 /* ------------------------------- SweetAlert ------------------------------ */
 
@@ -23,13 +32,14 @@ const Toast = Swal.mixin({
 
 const showToast = (icon, title) => Toast.fire({ icon, title });
 
-/* ---------------------------- Helper functions --------------------------- */
+/* ---------------------------- Helper Functions --------------------------- */
 
-// Local date as YYYY-MM-DD (avoids timezone bugs of toISOString)
+// Local date as YYYY-MM-DD
 const toDateInputValue = (d) => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
+
   return `${y}-${m}-${day}`;
 };
 
@@ -37,19 +47,26 @@ const toDateInputValue = (d) => {
 const toTimeInputValue = (d) => {
   const h = String(d.getHours()).padStart(2, "0");
   const min = String(d.getMinutes()).padStart(2, "0");
+
   return `${h}:${min}`;
 };
 
-// Combine "YYYY-MM-DD" (or ISO string) + "HH:mm" into a Date
+// Convert appointment date and time into a Date
 const getAppointmentDateTime = (appointment) => {
   const datePart = String(appointment.date || "").slice(0, 10);
   const timePart = appointment.time || "00:00";
+
   return new Date(`${datePart}T${timePart}`);
 };
 
+// Format date
 const formatDate = (dateStr) => {
+  if (!dateStr) return "";
+
   const d = new Date(`${String(dateStr).slice(0, 10)}T00:00`);
-  if (isNaN(d)) return dateStr;
+
+  if (isNaN(d.getTime())) return dateStr;
+
   return d.toLocaleDateString("en-GB", {
     weekday: "short",
     day: "2-digit",
@@ -58,11 +75,26 @@ const formatDate = (dateStr) => {
   });
 };
 
+// Format time
 const formatTime = (timeStr) => {
   if (!timeStr) return "";
+
   const [h, m] = timeStr.split(":").map(Number);
+
+  if (
+    !Number.isInteger(h) ||
+    !Number.isInteger(m) ||
+    h < 0 ||
+    h > 23 ||
+    m < 0 ||
+    m > 59
+  ) {
+    return timeStr;
+  }
+
   const d = new Date();
   d.setHours(h, m, 0, 0);
+
   return d.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
@@ -70,37 +102,43 @@ const formatTime = (timeStr) => {
   });
 };
 
-/**
- * Decide which section an appointment belongs to.
- *  - completed : status is Completed
- *  - cancelled : status is Cancelled, OR the date/time has passed
- *                and the appointment was never completed (missed)
- *  - upcoming  : still in the future and Pending/Confirmed
- */
+/* -------------------------- Appointment Category ------------------------- */
+
 const getCategory = (appointment, now) => {
   const status = (appointment.status || "").toLowerCase();
 
-  if (status === "completed") return "completed";
-  if (status === "cancelled" || status === "canceled") return "cancelled";
+  if (status === "completed") {
+    return "completed";
+  }
+
+  if (status === "cancelled" || status === "canceled") {
+    return "cancelled";
+  }
 
   const when = getAppointmentDateTime(appointment);
-  if (!isNaN(when) && when < now) return "cancelled"; // missed
+
+  if (!isNaN(when.getTime()) && when < now) {
+    return "cancelled";
+  }
+
   return "upcoming";
 };
 
-/* -------------------------------- Component ------------------------------- */
+/* ------------------------------- Component -------------------------------- */
 
 function Appointments() {
   const location = useLocation();
 
   const selectedDoctor = location.state?.doctor;
   const doctorId = location.state?.doctorId || selectedDoctor?._id;
+
   const token = localStorage.getItem("token");
 
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
+
   const [activeTab, setActiveTab] = useState("upcoming");
   const [now, setNow] = useState(new Date());
 
@@ -116,63 +154,97 @@ function Appointments() {
     reason: "",
   });
 
-  // Keep "now" fresh so appointments move to the right section automatically
+  /* ------------------------------ Keep Time Fresh ------------------------- */
+
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60 * 1000);
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 60 * 1000);
+
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch logged-in user's appointments
+  /* -------------------------- Fetch Appointments -------------------------- */
+
   useEffect(() => {
+    let cancelled = false;
+
     const fetchAppointments = async () => {
       try {
         const res = await axios.get(`${API_URL}/my`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
-        setAppointments(res.data.data || []);
+
+        if (!cancelled) {
+          setAppointments(res.data.data || []);
+        }
       } catch (error) {
-        console.error("Failed to load appointments:", error);
-        showToast("error", "Failed to load your appointments.");
+        if (!cancelled) {
+          console.error(
+            "Failed to load appointments:",
+            error.response?.data || error.message,
+          );
+
+          showToast(
+            "error",
+            error.response?.data?.message ||
+              "Failed to load your appointments.",
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
     if (token) {
       fetchAppointments();
     } else {
+      setAppointments([]);
       setLoading(false);
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
-  // Auto-fill doctor information when coming from Doctors page
+  /* ------------------------ Auto-fill Doctor Details ---------------------- */
+
   useEffect(() => {
     if (selectedDoctor) {
       setFormData((prev) => ({
         ...prev,
-        doctor: selectedDoctor.name,
-        specialty: selectedDoctor.specialty,
+        doctor: selectedDoctor.name || "",
+        specialty: selectedDoctor.specialty || "",
       }));
     }
   }, [selectedDoctor]);
 
-  /* ------------------------------ Validation ------------------------------ */
+  /* ------------------------------ Date Limits ----------------------------- */
 
   const todayStr = toDateInputValue(now);
+
   const maxDateStr = toDateInputValue(
     new Date(now.getTime() + MAX_DAYS_AHEAD * 24 * 60 * 60 * 1000),
   );
 
+  /* ------------------------------- Validation ----------------------------- */
+
   const validate = (data) => {
     const e = {};
 
-    // Doctor
+    // Doctor validation
     if (!doctorId || !data.doctor || !data.specialty) {
       e.doctor = "Please select a doctor from the Doctors page first.";
     }
 
-    // Patient name
+    // Patient name validation
     const name = data.patientName.trim();
+
     if (!name) {
       e.patientName = "Patient name is required.";
     } else if (name.length < 3) {
@@ -183,7 +255,7 @@ function Appointments() {
       e.patientName = "Name can only contain letters, spaces, . ' and -";
     }
 
-    // Date
+    // Date validation
     if (!data.date) {
       e.date = "Please choose a date.";
     } else if (data.date < todayStr) {
@@ -192,22 +264,25 @@ function Appointments() {
       e.date = `You can only book up to ${MAX_DAYS_AHEAD} days in advance.`;
     }
 
-    // Time
+    // Time validation
     if (!data.time) {
       e.time = "Please choose a time.";
     } else if (data.time < OPEN_TIME || data.time > CLOSE_TIME) {
-      e.time = `Time must be between ${formatTime(OPEN_TIME)} and ${formatTime(CLOSE_TIME)}.`;
+      e.time = `Time must be between ${formatTime(
+        OPEN_TIME,
+      )} and ${formatTime(CLOSE_TIME)}.`;
     } else if (data.date === todayStr) {
-      // Same-day booking must be at least 30 minutes from now
       const minTime = new Date(now.getTime() + 30 * 60 * 1000);
       const selected = new Date(`${data.date}T${data.time}`);
+
       if (selected < minTime) {
         e.time = "Please choose a time at least 30 minutes from now.";
       }
     }
 
-    // Reason
+    // Reason validation
     const reason = data.reason.trim();
+
     if (!reason) {
       e.reason = "Please describe your reason for the appointment.";
     } else if (reason.length < 10) {
@@ -216,15 +291,26 @@ function Appointments() {
       e.reason = "Reason must be under 500 characters.";
     }
 
-    // Duplicate / conflicting booking (same doctor, same slot, still active)
+    // Duplicate booking validation
     if (!e.date && !e.time && !e.doctor) {
-      const duplicate = appointments.some(
-        (a) =>
+      const duplicate = appointments.some((a) => {
+        const sameDate = String(a.date || "").slice(0, 10) === data.date;
+
+        const sameTime = a.time === data.time;
+
+        const sameDoctor =
+          String(a.doctor?._id || a.doctor || "") === String(doctorId) ||
+          String(a.doctorId || "") === String(doctorId) ||
+          a.doctorName === data.doctor;
+
+        return (
           getCategory(a, now) === "upcoming" &&
-          String(a.date).slice(0, 10) === data.date &&
-          a.time === data.time &&
-          (a.doctorName === data.doctor || a.doctor?._id === doctorId),
-      );
+          sameDate &&
+          sameTime &&
+          sameDoctor
+        );
+      });
+
       if (duplicate) {
         e.time =
           "You already have an appointment with this doctor at that time.";
@@ -234,10 +320,18 @@ function Appointments() {
     return e;
   };
 
+  /* ------------------------------ Form Changes ---------------------------- */
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    const updated = { ...formData, [name]: value };
+
+    const updated = {
+      ...formData,
+      [name]: value,
+    };
+
     setFormData(updated);
+
     if (touched[name]) {
       setErrors(validate(updated));
     }
@@ -245,15 +339,29 @@ function Appointments() {
 
   const handleBlur = (e) => {
     const { name } = e.target;
-    setTouched((prev) => ({ ...prev, [name]: true }));
+
+    setTouched((prev) => ({
+      ...prev,
+      [name]: true,
+    }));
+
     setErrors(validate(formData));
   };
+
+  /* ----------------------------- Submit Booking --------------------------- */
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!token) {
+      showToast("warning", "Please log in to book an appointment.");
+      return;
+    }
+
     const validationErrors = validate(formData);
+
     setErrors(validationErrors);
+
     setTouched({
       patientName: true,
       date: true,
@@ -269,6 +377,7 @@ function Appointments() {
         text: "Please fix the highlighted errors and try again.",
         confirmButtonColor: "#0891b2",
       });
+
       return;
     }
 
@@ -281,12 +390,14 @@ function Appointments() {
           <b>Doctor:</b> ${formData.doctor}<br/>
           <b>Date:</b> ${formatDate(formData.date)}<br/>
           <b>Time:</b> ${formatTime(formData.time)}
-        </div>`,
+        </div>
+      `,
       showCancelButton: true,
       confirmButtonText: "Yes, book it",
       cancelButtonText: "Review again",
       confirmButtonColor: "#0891b2",
     });
+
     if (!confirm.isConfirmed) return;
 
     try {
@@ -301,14 +412,20 @@ function Appointments() {
           time: formData.time,
           reason: formData.reason.trim(),
         },
-        { headers: { Authorization: `Bearer ${token}` } },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       );
 
       const savedAppointment = res.data.data;
 
-      // Show instantly in Upcoming Appointments
+      // Update the list immediately
       setAppointments((prev) => [savedAppointment, ...prev]);
+
       setActiveTab("upcoming");
+
       Swal.fire({
         icon: "success",
         title: "Appointment Booked!",
@@ -317,7 +434,7 @@ function Appointments() {
         timer: 2500,
       });
 
-      // Reset form but keep selected doctor
+      // Reset form and preserve selected doctor
       setFormData({
         patientName: "",
         doctor: selectedDoctor?.name || "",
@@ -326,14 +443,21 @@ function Appointments() {
         time: "",
         reason: "",
       });
+
       setTouched({});
       setErrors({});
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Appointment booking failed:",
+        error.response?.data || error.message,
+      );
+
       Swal.fire({
         icon: "error",
         title: "Booking failed",
-        text: error.response?.data?.message || "Failed to book appointment.",
+        text:
+          error.response?.data?.message ||
+          "Failed to book appointment. Please try again.",
         confirmButtonColor: "#0891b2",
       });
     } finally {
@@ -341,23 +465,25 @@ function Appointments() {
     }
   };
 
-  /* ------------------------------ Cancel action ---------------------------- */
+  /* ------------------------------ Cancel Booking -------------------------- */
 
-  // Backend route: PATCH /api/v1/appointments/:id/cancel
   const handleCancel = async (appointment) => {
     const result = await Swal.fire({
       icon: "warning",
       title: "Cancel this appointment?",
       html: `
         <div style="text-align:left;line-height:1.8;margin-bottom:8px">
-          <b>Doctor:</b> ${appointment.doctorName}<br/>
+          <b>Doctor:</b> ${appointment.doctorName || "Doctor"}<br/>
           <b>Date:</b> ${formatDate(appointment.date)}<br/>
           <b>Time:</b> ${formatTime(appointment.time)}
-        </div>`,
+        </div>
+      `,
       input: "textarea",
       inputLabel: "Reason for cancellation (optional)",
       inputPlaceholder: "Tell us why you are cancelling...",
-      inputAttributes: { maxlength: 200 },
+      inputAttributes: {
+        maxlength: 200,
+      },
       showCancelButton: true,
       confirmButtonText: "Yes, cancel it",
       cancelButtonText: "Keep appointment",
@@ -373,8 +499,14 @@ function Appointments() {
 
       const res = await axios.patch(
         `${API_URL}/${appointment._id}/cancel`,
-        { reason: (result.value || "").trim() },
-        { headers: { Authorization: `Bearer ${token}` } },
+        {
+          reason: (result.value || "").trim(),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       );
 
       const updated = res.data.data;
@@ -393,7 +525,11 @@ function Appointments() {
         timer: 2500,
       });
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Appointment cancellation failed:",
+        error.response?.data || error.message,
+      );
+
       Swal.fire({
         icon: "error",
         title: "Could not cancel",
@@ -405,28 +541,37 @@ function Appointments() {
     }
   };
 
-  /* ------------------------- Group appointments in 3 ----------------------- */
+  /* -------------------------- Group Appointments -------------------------- */
 
   const grouped = useMemo(() => {
-    const result = { upcoming: [], cancelled: [], completed: [] };
+    const result = {
+      upcoming: [],
+      cancelled: [],
+      completed: [],
+    };
 
-    appointments.forEach((a) => {
-      result[getCategory(a, now)].push(a);
+    appointments.forEach((appointment) => {
+      result[getCategory(appointment, now)].push(appointment);
     });
 
-    // Upcoming: soonest first. Others: most recent first.
+    // Upcoming appointments: soonest first
     result.upcoming.sort(
       (a, b) => getAppointmentDateTime(a) - getAppointmentDateTime(b),
     );
+
+    // Previous appointments: most recent first
     result.cancelled.sort(
       (a, b) => getAppointmentDateTime(b) - getAppointmentDateTime(a),
     );
+
     result.completed.sort(
       (a, b) => getAppointmentDateTime(b) - getAppointmentDateTime(a),
     );
 
     return result;
   }, [appointments, now]);
+
+  /* -------------------------------- Tabs ---------------------------------- */
 
   const tabs = [
     {
@@ -455,22 +600,44 @@ function Appointments() {
     completed: "No completed appointments yet.",
   };
 
+  /* ------------------------------- Status Badge --------------------------- */
+
   const getBadge = (appointment, category) => {
     if (category === "completed") {
-      return { text: "Completed", cls: "bg-green-100 text-green-700" };
+      return {
+        text: "Completed",
+        cls: "bg-green-100 text-green-700",
+      };
     }
+
     if (category === "cancelled") {
       const isCancelled = ["cancelled", "canceled"].includes(
         (appointment.status || "").toLowerCase(),
       );
+
       return isCancelled
-        ? { text: "Cancelled", cls: "bg-red-100 text-red-700" }
-        : { text: "Missed", cls: "bg-orange-100 text-orange-700" };
+        ? {
+            text: "Cancelled",
+            cls: "bg-red-100 text-red-700",
+          }
+        : {
+            text: "Missed",
+            cls: "bg-orange-100 text-orange-700",
+          };
     }
-    return appointment.status === "Confirmed"
-      ? { text: "Confirmed", cls: "bg-green-100 text-green-700" }
-      : { text: "Pending", cls: "bg-yellow-100 text-yellow-700" };
+
+    return appointment.status?.toLowerCase() === "confirmed"
+      ? {
+          text: "Confirmed",
+          cls: "bg-green-100 text-green-700",
+        }
+      : {
+          text: "Pending",
+          cls: "bg-yellow-100 text-yellow-700",
+        };
   };
+
+  /* ------------------------------ Input Styles ---------------------------- */
 
   const inputClass = (field, extra = "") =>
     `w-full border rounded-xl p-3 outline-none focus:ring-2 ${
@@ -484,7 +651,7 @@ function Appointments() {
       <p className="text-red-600 text-sm mt-1">{errors[field]}</p>
     ) : null;
 
-  /* --------------------------------- Render -------------------------------- */
+  /* --------------------------------- Render ------------------------------- */
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -492,6 +659,7 @@ function Appointments() {
       <div className="bg-gradient-to-r from-cyan-600 to-blue-700 text-white p-10">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold">Book Medical Appointment</h1>
+
           <p className="mt-3 text-blue-100 max-w-3xl">
             Easily schedule appointments with experienced healthcare
             professionals.
@@ -510,6 +678,7 @@ function Appointments() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h2 className="text-gray-500 font-semibold">Total Appointments</h2>
+
             <p className="text-4xl font-bold text-cyan-600 mt-3">
               {appointments.length}
             </p>
@@ -517,6 +686,7 @@ function Appointments() {
 
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h2 className="text-gray-500 font-semibold">Upcoming</h2>
+
             <p className="text-4xl font-bold text-blue-600 mt-3">
               {grouped.upcoming.length}
             </p>
@@ -524,6 +694,7 @@ function Appointments() {
 
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h2 className="text-gray-500 font-semibold">Completed</h2>
+
             <p className="text-4xl font-bold text-green-600 mt-3">
               {grouped.completed.length}
             </p>
@@ -531,13 +702,14 @@ function Appointments() {
 
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h2 className="text-gray-500 font-semibold">Cancelled / Missed</h2>
+
             <p className="text-4xl font-bold text-red-600 mt-3">
               {grouped.cancelled.length}
             </p>
           </div>
         </div>
 
-        {/* Main */}
+        {/* Main Content */}
         <div className="grid lg:grid-cols-2 gap-8 mt-10">
           {/* Booking Form */}
           <div className="bg-white rounded-3xl shadow-xl p-8 h-fit">
@@ -550,10 +722,12 @@ function Appointments() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+              {/* Patient Name */}
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-1">
                   Patient Name
                 </label>
+
                 <input
                   type="text"
                   name="patientName"
@@ -564,13 +738,16 @@ function Appointments() {
                   maxLength={60}
                   className={inputClass("patientName")}
                 />
+
                 <ErrorText field="patientName" />
               </div>
 
+              {/* Doctor */}
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-1">
                   Doctor
                 </label>
+
                 <input
                   type="text"
                   name="doctor"
@@ -579,13 +756,16 @@ function Appointments() {
                   readOnly
                   className="w-full border rounded-xl p-3 bg-gray-100"
                 />
+
                 <ErrorText field="doctor" />
               </div>
 
+              {/* Specialty */}
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-1">
                   Specialty
                 </label>
+
                 <input
                   type="text"
                   name="specialty"
@@ -596,11 +776,13 @@ function Appointments() {
                 />
               </div>
 
+              {/* Date and Time */}
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-600 mb-1">
                     Date
                   </label>
+
                   <input
                     type="date"
                     name="date"
@@ -611,6 +793,7 @@ function Appointments() {
                     onBlur={handleBlur}
                     className={inputClass("date")}
                   />
+
                   <ErrorText field="date" />
                 </div>
 
@@ -618,6 +801,7 @@ function Appointments() {
                   <label className="block text-sm font-semibold text-gray-600 mb-1">
                     Time
                   </label>
+
                   <input
                     type="time"
                     name="time"
@@ -628,6 +812,7 @@ function Appointments() {
                     onBlur={handleBlur}
                     className={inputClass("time")}
                   />
+
                   <ErrorText field="time" />
                 </div>
               </div>
@@ -637,10 +822,12 @@ function Appointments() {
                 . You can book up to {MAX_DAYS_AHEAD} days ahead.
               </p>
 
+              {/* Reason */}
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-1">
                   Reason for Appointment
                 </label>
+
                 <textarea
                   rows="5"
                   name="reason"
@@ -651,14 +838,17 @@ function Appointments() {
                   onBlur={handleBlur}
                   className={inputClass("reason")}
                 />
+
                 <div className="flex justify-between">
                   <ErrorText field="reason" />
+
                   <p className="text-xs text-gray-400 ml-auto mt-1">
                     {formData.reason.length}/500
                   </p>
                 </div>
               </div>
 
+              {/* Submit */}
               <button
                 type="submit"
                 disabled={submitting || !token}
@@ -669,7 +859,7 @@ function Appointments() {
             </form>
           </div>
 
-          {/* Appointments (3 sections) */}
+          {/* My Appointments */}
           <div className="bg-white rounded-3xl shadow-xl p-8">
             <h2 className="text-2xl font-bold mb-6">My Appointments</h2>
 
@@ -691,7 +881,7 @@ function Appointments() {
               ))}
             </div>
 
-            {/* List */}
+            {/* Appointment List */}
             <div className="space-y-5">
               {loading && (
                 <p className="text-gray-500 text-center py-10">
@@ -714,13 +904,15 @@ function Appointments() {
                       key={appointment._id}
                       className="border rounded-2xl p-5 hover:shadow-lg transition"
                     >
-                      <div className="flex justify-between items-center">
+                      {/* Doctor and Status */}
+                      <div className="flex justify-between items-center gap-3">
                         <div>
                           <h3 className="font-bold text-lg">
-                            {appointment.doctorName}
+                            {appointment.doctorName || "Doctor"}
                           </h3>
+
                           <p className="text-gray-500">
-                            {appointment.specialty}
+                            {appointment.specialty || ""}
                           </p>
                         </div>
 
@@ -731,16 +923,20 @@ function Appointments() {
                         </span>
                       </div>
 
+                      {/* Appointment Details */}
                       <div className="mt-4 text-gray-600 space-y-1">
                         <p>
                           <strong>Patient:</strong> {appointment.patientName}
                         </p>
+
                         <p>
                           📅 <strong>{formatDate(appointment.date)}</strong>
                         </p>
+
                         <p>
                           🕒 <strong>{formatTime(appointment.time)}</strong>
                         </p>
+
                         {appointment.reason && (
                           <p className="text-sm text-gray-500">
                             <strong>Reason:</strong> {appointment.reason}
@@ -748,6 +944,7 @@ function Appointments() {
                         )}
                       </div>
 
+                      {/* Cancellation Reason */}
                       {appointment.cancelReason && (
                         <p className="mt-2 text-sm text-red-600">
                           <strong>Cancel reason:</strong>{" "}
@@ -755,6 +952,7 @@ function Appointments() {
                         </p>
                       )}
 
+                      {/* Missed Appointment Notice */}
                       {activeTab === "cancelled" && badge.text === "Missed" && (
                         <p className="mt-3 text-sm text-orange-600">
                           The appointment date passed and you did not meet the
@@ -762,8 +960,10 @@ function Appointments() {
                         </p>
                       )}
 
+                      {/* Cancellation Button */}
                       {activeTab === "upcoming" &&
-                        (getAppointmentDateTime(appointment) - now >=
+                        (getAppointmentDateTime(appointment).getTime() -
+                          now.getTime() >=
                         MIN_CANCEL_HOURS * 60 * 60 * 1000 ? (
                           <button
                             type="button"
