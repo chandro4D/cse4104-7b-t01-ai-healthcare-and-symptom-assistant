@@ -654,7 +654,7 @@ function Appointments() {
   /* --------------------------------- Render ------------------------------- */
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 text-black">
       {/* Header */}
       <div className="bg-gradient-to-r from-cyan-600 to-blue-700 text-white p-10">
         <div className="max-w-7xl mx-auto">

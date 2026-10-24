@@ -38,7 +38,7 @@ function ComingSoon() {
 
 function AppRoutes() {
   return (
-    <Routes>
+    <Routes className="text-black">
       <Route path="/" element={<MainLayout />}>
         {/* ───────── Public pages (anyone) ───────── */}
         <Route index element={<Home />} />

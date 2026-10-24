@@ -238,7 +238,7 @@ function Doctors() {
                 Search Doctor
               </label>
 
-              <div className="relative">
+              <div className="relative text-black">
                 <input
                   type="text"
                   placeholder="Search by doctor name, specialty or hospital..."
