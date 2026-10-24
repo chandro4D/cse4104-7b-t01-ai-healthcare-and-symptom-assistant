@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import Swal from "sweetalert2";
 import {
   FaSearch,
   // FaBell,
@@ -19,6 +20,7 @@ const API = `${API_URL}/api/v1`;
 // Change these paths to match your React Router routes.
 // (Your My Appointments page links to "/doctors", so that one is used here.)
 const ROUTES = {
+  login: "/login", // used by the "session expired" alert – change if needed
   symptomChecker: "/patient/symptom-checker",
   doctors: "/doctors",
   prescriptions: "/patient/prescriptions",
@@ -75,6 +77,9 @@ const TREND_NOTE = {
 };
 
 const BOOKING_TITLE = "Consider booking an appointment";
+
+const SESSION_EXPIRED_MESSAGE =
+  "Your session has expired. Please log in again.";
 
 // ----------------------------------------------------------------------------
 // Date / appointment helpers (same logic as the My Appointments page, so both
@@ -203,7 +208,7 @@ const authConfig = () => ({
 
 function errorText(err, fallback) {
   if (err?.response?.status === 401) {
-    return "Your session has expired. Please log in again.";
+    return SESSION_EXPIRED_MESSAGE;
   }
   return err?.response?.data?.message || fallback;
 }
@@ -261,52 +266,90 @@ export default function PatientHome() {
   const [insights, setInsights] = useState(null); // from /dashboard/patient
   const [insightsFailed, setInsightsFailed] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  const loadDashboard = useCallback(async (showLoader = true) => {
-    if (showLoader) setLoading(true);
-    setError("");
+  const loadDashboard = useCallback(
+    async (showLoader = true) => {
+      if (showLoader) setLoading(true);
 
-    const config = authConfig();
+      const config = authConfig();
+      let errorMessage = "";
+      let sessionExpired = false;
 
-    // Appointments and AI insights load separately, so a problem with one
-    // never hides the other.
-    const [apptResult, insightResult] = await Promise.allSettled([
-      axios.get(`${API}/appointments/my`, config),
-      axios.get(`${API}/dashboard/patient`, config),
-    ]);
+      // Appointments and AI insights load separately, so a problem with one
+      // never hides the other.
+      const [apptResult, insightResult] = await Promise.allSettled([
+        axios.get(`${API}/appointments/my`, config),
+        axios.get(`${API}/dashboard/patient`, config),
+      ]);
 
-    if (apptResult.status === "fulfilled") {
-      const list = extractList(apptResult.value.data);
+      if (apptResult.status === "fulfilled") {
+        const list = extractList(apptResult.value.data);
 
-      if (list) {
-        setAppointments(list);
-        setAppointmentsLoaded(true);
+        if (list) {
+          setAppointments(list);
+          setAppointmentsLoaded(true);
+        } else {
+          console.error(
+            "Unexpected appointments response:",
+            apptResult.value.data,
+          );
+          errorMessage = "Appointments data format is unexpected.";
+        }
       } else {
-        console.error(
-          "Unexpected appointments response:",
-          apptResult.value.data,
+        console.error("Failed to load appointments:", apptResult.reason);
+        errorMessage = errorText(
+          apptResult.reason,
+          "Could not load your appointments.",
         );
-        setError("Appointments data format is unexpected.");
+        if (apptResult.reason?.response?.status === 401) sessionExpired = true;
       }
-    } else {
-      console.error("Failed to load appointments:", apptResult.reason);
-      setError(
-        errorText(apptResult.reason, "Could not load your appointments."),
-      );
-    }
 
-    if (insightResult.status === "fulfilled") {
-      setInsights(insightResult.value.data);
-      setInsightsFailed(false);
-    } else {
-      console.error("Failed to load AI insights:", insightResult.reason);
-      setInsights(null);
-      setInsightsFailed(true);
-    }
+      if (insightResult.status === "fulfilled") {
+        setInsights(insightResult.value.data);
+        setInsightsFailed(false);
+      } else {
+        console.error("Failed to load AI insights:", insightResult.reason);
+        setInsights(null);
+        setInsightsFailed(true);
+        if (insightResult.reason?.response?.status === 401) {
+          sessionExpired = true;
+          errorMessage = SESSION_EXPIRED_MESSAGE;
+        }
+      }
 
-    setLoading(false);
-  }, []);
+      setLoading(false);
+
+      // Only show a popup for the initial load / manual retry, not for the
+      // quiet refresh on window focus (that would pop up repeatedly).
+      if (errorMessage && showLoader && !Swal.isVisible()) {
+        if (sessionExpired) {
+          Swal.fire({
+            icon: "warning",
+            title: "Session expired",
+            text: errorMessage,
+            confirmButtonText: "Log in",
+            confirmButtonColor: "#0f766e",
+            allowOutsideClick: false,
+          }).then((result) => {
+            if (result.isConfirmed) navigate(ROUTES.login);
+          });
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "Something went wrong",
+            text: errorMessage,
+            showCancelButton: true,
+            confirmButtonText: "Retry",
+            cancelButtonText: "Close",
+            confirmButtonColor: "#0f766e",
+          }).then((result) => {
+            if (result.isConfirmed) loadDashboard();
+          });
+        }
+      }
+    },
+    [navigate],
+  );
 
   useEffect(() => {
     loadDashboard();
@@ -419,18 +462,6 @@ export default function PatientHome() {
       </header> */}
 
       <main className="px-8 py-7 space-y-6">
-        {error && (
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            <span>{error}</span>
-            <button
-              onClick={() => loadDashboard()}
-              className="font-semibold underline hover:no-underline"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
         {/* Greeting */}
         <div className="flex items-start justify-between">
           <div>
